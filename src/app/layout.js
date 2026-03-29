@@ -22,9 +22,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="pb-0 font-sans"> {/* optional font */}
-        <Navbar />
+  
         <main className="min-h-[calc(100vh-80px)]">{children}</main> {/* ensures footer sticks below content */}
-        <Footer /> {/* <-- footer placed here */}
+    
       </body>
     </html>
   );

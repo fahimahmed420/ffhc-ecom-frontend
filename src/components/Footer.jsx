@@ -1,114 +1,127 @@
 "use client";
 
 import { useState } from "react";
-import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn,FaCcVisa,FaCcMastercard,FaCcPaypal,FaCcStripe   } from "react-icons/fa";
-
-const supportLinks = [
-  { title: "Privacy Policy", content: "Our privacy policy ensures your data is safe..." },
-  { title: "Terms & Conditions", content: "These are the rules and guidelines for using our site..." },
-  { title: "Shipping", content: "We provide fast and reliable shipping..." },
-  { title: "Returns", content: "Easy return process if you are not satisfied..." },
-];
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Footer() {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalContent, setModalContent] = useState({ title: "", content: "" });
+  const [activeModal, setActiveModal] = useState(null);
 
-  const openModal = (link) => {
-    setModalContent(link);
-    setModalOpen(true);
-  };
+  const links = [
+    {
+      title: "Privacy Policy",
+      description:
+        "We respect your privacy and ensure that your personal data is securely handled and never shared without consent.",
+    },
+    {
+      title: "Terms of Service",
+      description:
+        "By using our platform, you agree to our terms and conditions designed to ensure a fair experience for all users.",
+    },
+    {
+      title: "Shipping Info",
+      description:
+        "We provide fast and reliable shipping with tracking support so you always know where your order is.",
+    },
+    {
+      title: "Contact Us",
+      description:
+        "Need help? Our support team is always ready to assist you with any questions or concerns.",
+    },
+  ];
 
-  const closeModal = () => setModalOpen(false);
+  const payments = ["Visa", "Mastercard", "bKash", "Nagad", "Rocket"];
 
   return (
-    <footer className="bg-gray-900 text-gray-300 relative z-10 py-8">
-      <div className="max-w-7xl mx-auto px-6  grid grid-cols-1 md:grid-cols-4 gap-8">
-        {/* Logo / Brand */}
-        <div className="flex flex-col gap-4">
-          <h1 className="text-2xl font-bold text-white">Family Fashion Hub China</h1>
-          <p className="text-gray-400">Quality products, fast delivery, and reliable service.</p>
-          <div className="flex gap-4 mt-2">
-            <a href="#" className="hover:text-white transition"><FaFacebookF /></a>
-            <a href="#" className="hover:text-white transition"><FaTwitter /></a>
-            <a href="#" className="hover:text-white transition"><FaInstagram /></a>
-            <a href="#" className="hover:text-white transition"><FaLinkedinIn /></a>
-          </div>
-        </div>
+    <footer className="px-6 md:px-12 py-20 max-w-7xl mx-auto">
+      
+      {/* Brand */}
+      <h2 className="text-2xl mb-6 text-center">
+        Family Fashion Hub China
+      </h2>
 
-        {/* Quick shop */}
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold text-white mb-2">Quick Shop</h3>
-          <a href="#" className="hover:text-white transition">Men</a>
-          <a href="#" className="hover:text-white transition">Women</a>
-          <a href="#" className="hover:text-white transition">Beauty</a>
-          <a href="#" className="hover:text-white transition">Electronics</a>
-          <a href="#" className="hover:text-white transition">Kids</a>
-        </div>
+      {/* Links */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-12">
+        {links.map((link, idx) => (
+          <motion.div
+            key={idx}
+            whileHover={{ y: -6 }}
+            transition={{ type: "spring", stiffness: 200 }}
+            onClick={() => setActiveModal(link)}
+            className="group border border-gray-200 p-6 bg-white cursor-pointer relative text-center"
+          >
+            <h3 className="text-sm tracking-widest">
+              {link.title.toUpperCase()}
+            </h3>
 
-        {/* Support */}
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold text-white mb-2">Support</h3>
-          {supportLinks.map((link, idx) => (
-            <button
-              key={idx}
-              onClick={() => openModal(link)}
-              className="text-left hover:text-white transition"
-            >
-              {link.title}
-            </button>
+            {/* Hover underline */}
+            <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-black transition-all duration-300 group-hover:w-full"></div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Payment Methods */}
+      <div className="text-center mb-8">
+        <p className="text-sm tracking-widest mb-3">
+          ACCEPTED PAYMENTS
+        </p>
+        <div className="flex justify-center flex-wrap gap-4 text-sm text-gray-500">
+          {payments.map((method, idx) => (
+            <span key={idx} className="border px-3 py-1">
+              {method}
+            </span>
           ))}
         </div>
-
-        {/* Newsletter */}
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold text-white mb-2">Subscribe</h3>
-          <p className="text-gray-400">Get the latest updates and offers.</p>
-          <div className="mt-2 flex gap-2">
-            <input
-              type="email"
-              placeholder="Your email"
-              className="w-full px-3 py-2 rounded-md text-gray-900 focus:outline-none"
-            />
-            <button className="bg-blue-600 px-4 py-2 rounded-md text-white hover:bg-blue-700 transition">
-              Subscribe
-            </button>
-          </div>
-        </div>
       </div>
 
-      {/* Bottom copyright + payment */}
-      <div className="max-w-7xl mx-auto mt-6 border-t border-gray-700 pt-4 flex flex-col md:flex-row justify-between items-center text-gray-500 text-sm">
-        <div>&copy; {new Date().getFullYear()} Family Fashion Hub. All rights reserved.</div>
-        <div className="flex gap-4 mt-2 md:mt-0 text-white text-xl">
-          <FaCcVisa />
-          <FaCcMastercard />
-          <FaCcPaypal />
-          <FaCcStripe />
-        </div>
-      </div>
+      {/* Bottom text */}
+      <p className="text-sm text-gray-500 text-center">
+        © 2026 Family Fashion Hub China. All rights reserved.
+      </p>
 
       {/* Modal */}
-      {modalOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-          onClick={closeModal}
-        >
-          <div
-            className="bg-white rounded-xl max-w-md p-6 text-gray-900 shadow-lg relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-xl font-bold mb-4">{modalContent.title}</h3>
-            <p className="mb-6">{modalContent.content}</p>
-            <button
-              onClick={closeModal}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-900 transition"
+      <AnimatePresence>
+        {activeModal && (
+          <>
+            {/* Overlay */}
+            <motion.div
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveModal(null)}
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              className="fixed inset-0 flex items-center justify-center z-50 px-6"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
             >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
+              <div className="bg-white max-w-md w-full p-8 border border-gray-200 relative">
+                
+                {/* Title */}
+                <h3 className="text-sm tracking-widest mb-4">
+                  {activeModal.title.toUpperCase()}
+                </h3>
+
+                {/* Description */}
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  {activeModal.description}
+                </p>
+
+                {/* Close */}
+                <button
+                  onClick={() => setActiveModal(null)}
+                  className="absolute top-3 right-4 text-gray-400 hover:text-black"
+                >
+                  ✕
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </footer>
   );
 }

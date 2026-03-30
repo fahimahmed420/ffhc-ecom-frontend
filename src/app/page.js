@@ -1,23 +1,26 @@
-import Navbar from "@/components/Navbar";
-import Categories from "@/components/Categories";
 import Hero from "@/components/Hero";
-import Footer from "@/components/Footer";
-import BottomNav from "@/components/BottomNav";
-import NewArrivals from "@/components/NewArrivals";
+import Categories from "@/components/Categories";
 import PriceComparison from "@/components/PriceComparison";
 import OurFocus from "@/components/OurFocus";
+import BestSelling from "@/components/BestSelling";
 
 export default function Home() {
   return (
-    <main className="bg-gray-100 min-h-screen pb-20">
-      <Navbar />
+    <div className="bg-gray-100">
+      {/* Hero Section */}
       <Hero />
+
+      {/* Categories */}
       <Categories />
-      <NewArrivals/>
-      <PriceComparison/>
-      <OurFocus/>
-      <Footer />
-      <BottomNav />
-    </main>
+
+      {/* New Arrivals */}
+      <BestSelling />
+
+      {/* Price Comparison */}
+      <PriceComparison />
+
+      {/* Our Focus Section */}
+      <OurFocus />
+    </div>
   );
 }

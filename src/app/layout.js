@@ -1,17 +1,12 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer"; // <-- import your footer here
+import Footer from "@/components/Footer";
+import BottomNav from "@/components/BottomNav";
+import { CartProvider } from "@/context/CartContext";
+import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata = {
   title: "Family Fashion Hub",
@@ -20,11 +15,16 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className="pb-0 font-sans"> {/* optional font */}
-  
-        <main className="min-h-[calc(100vh-80px)]">{children}</main> {/* ensures footer sticks below content */}
-    
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="font-sans bg-gray-100">
+        <CartProvider>
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <BottomNav />
+          </div>
+        </CartProvider>
       </body>
     </html>
   );

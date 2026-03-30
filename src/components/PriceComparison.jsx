@@ -70,7 +70,7 @@ export default function PriceComparison({
 
             {/* Savings */}
             {opt.title === "Wholesale Price" && (
-              <div className="absolute top-4 right-4 text-[11px] tracking-widest border px-3 py-1">
+              <div className="absolute top-2 right-2 text-[11px] tracking-widest border px-3 py-1">
                 SAVE {savings}%
               </div>
             )}

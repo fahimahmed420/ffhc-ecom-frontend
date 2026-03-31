@@ -32,7 +32,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="border-b px-6 md:px-12 py-4 flex justify-between items-center relative">
+    <nav className="border-b border-gray-300 px-6 md:px-12 py-4 flex justify-between items-center relative">
 
       {/* Logo */}
       <Link href="/">
@@ -104,7 +104,7 @@ export default function Navbar() {
         <User
           size={16}
           className="cursor-pointer hover:scale-110 transition"
-          onClick={() => router.push("/login")}
+          onClick={() => router.push("/auth")}
         />
 
         {/* Mobile Menu */}

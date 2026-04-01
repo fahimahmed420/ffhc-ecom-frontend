@@ -35,7 +35,7 @@ export default function OurFocus() {
     <section className="px-6 md:px-12 py-20 max-w-7xl mx-auto">
       
       {/* Heading (same style as other sections) */}
-      <h2 className="text-2xl mb-12 text-center">
+      <h2 className="text-2xl mb-12 text-center font-semibold">
         Our Focus
       </h2>
 

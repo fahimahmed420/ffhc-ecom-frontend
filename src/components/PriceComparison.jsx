@@ -37,7 +37,7 @@ export default function PriceComparison({
     <section className="px-6 md:px-12 py-20 max-w-7xl mx-auto">
       
       {/* Heading */}
-      <h2 className="text-2xl mb-12 text-center">
+      <h2 className="text-2xl mb-12 text-center font-semibold">
         Compare Prices
       </h2>
 

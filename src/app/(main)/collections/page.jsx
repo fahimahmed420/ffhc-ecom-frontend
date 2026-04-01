@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { AiFillHeart, AiOutlineShoppingCart } from "react-icons/ai";
 
 export default function Collections() {
@@ -12,12 +12,16 @@ export default function Collections() {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
   const [cart, setCart] = useState([]);
-  const [sortOrder, setSortOrder] = useState("default"); // "default" | "asc" | "desc"
+  const [sortOrder, setSortOrder] = useState("default");
   const [categories, setCategories] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(18);
   const cartRef = useRef(null);
 
+  const [hoverImages, setHoverImages] = useState({});
+  const [mobileIndex, setMobileIndex] = useState({});
+
   useEffect(() => {
-    fetch("https://dummyjson.com/products")
+    fetch("https://dummyjson.com/products?limit=100")
       .then((res) => res.json())
       .then((data) => {
         const formatted = data.products.map((p) => ({
@@ -25,33 +29,28 @@ export default function Collections() {
           name: p.title,
           price: p.price,
           image: p.thumbnail,
+          images: p.images.length > 1 ? p.images : [p.thumbnail],
           category: p.category,
         }));
         setProducts(formatted);
-
-        // Get unique categories dynamically
         const uniqueCategories = [
           "All",
           ...Array.from(new Set(formatted.map((p) => p.category))),
         ];
         setCategories(uniqueCategories);
-
         setLoading(false);
       });
   }, []);
 
-  // Filter by category
   let filteredProducts =
     selectedCategory === "All"
       ? products
       : products.filter((p) => p.category === selectedCategory);
 
-  // Sort products by price
-  if (sortOrder === "asc") {
+  if (sortOrder === "asc")
     filteredProducts = [...filteredProducts].sort((a, b) => a.price - b.price);
-  } else if (sortOrder === "desc") {
+  else if (sortOrder === "desc")
     filteredProducts = [...filteredProducts].sort((a, b) => b.price - a.price);
-  }
 
   const toggleFavorite = (id) => {
     setFavorites((prev) =>
@@ -62,8 +61,6 @@ export default function Collections() {
   const addToCart = (product) => {
     if (!cart.includes(product.id)) {
       setCart((prev) => [...prev, product.id]);
-
-      // Animate image flying to cart
       const img = document.getElementById(`img-${product.id}`);
       if (img && cartRef.current) {
         const clone = img.cloneNode(true);
@@ -84,60 +81,97 @@ export default function Collections() {
           [
             { transform: "translate(0,0) scale(1)", opacity: 1 },
             {
-              transform: `translate(${cartRect.left - rect.left}px, ${
-                cartRect.top - rect.top
-              }px) scale(0.2)`,
+              transform: `translate(${cartRect.left - rect.left}px, ${cartRect.top - rect.top}px) scale(0.2)`,
               opacity: 0.5,
             },
           ],
           { duration: 600, easing: "ease-in-out" }
-        ).onfinish = () => {
-          clone.remove();
-        };
+        ).onfinish = () => clone.remove();
       }
     }
   };
 
+  const loadMore = () => setVisibleCount((prev) => prev + 18);
+
+  const handleSwipe = (id, direction) => {
+    setMobileIndex((prev) => {
+      const current = prev[id] || 0;
+      const maxIndex =
+        filteredProducts.find((p) => p.id === id).images.length - 1;
+      let nextIndex = current + direction;
+      if (nextIndex < 0) nextIndex = maxIndex;
+      if (nextIndex > maxIndex) nextIndex = 0;
+      return { ...prev, [id]: nextIndex };
+    });
+  };
+
+  const renderSkeleton = () => (
+    <div className="animate-pulse flex flex-col md:flex-row md:items-start md:gap-4 border border-gray-200 p-3 bg-white rounded-lg">
+      <div className="bg-gray-200 w-full md:w-32 h-32 rounded-lg mb-3 md:mb-0"></div>
+      <div className="flex-1 space-y-3">
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        <div className="flex gap-2">
+          <div className="h-8 w-20 bg-gray-200 rounded"></div>
+          <div className="h-8 w-20 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <section className="px-6 md:px-12 py-12 max-w-7xl mx-auto">
-      {/* Page Header */}
-      <div className="mb-8 text-center md:text-left">
+    <section className="px-4 md:px-12 py-12 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-6 text-center md:text-left">
         <p className="text-xs tracking-widest text-gray-400 mb-2">
           OUR COLLECTIONS
         </p>
-
-        <h1 className="text-4xl md:text-5xl font-semibold mb-4">
+        <h1 className="text-3xl md:text-5xl font-semibold mb-3">
           SHOP THE LATEST PRODUCTS
         </h1>
-
         <p className="text-sm text-gray-500 max-w-xl leading-relaxed mb-4">
-          Discover a curated selection of accessories, kids’ items, jewelry,
-          car essentials, and more. Quality products designed to fit your
-          lifestyle.
+          Discover a curated selection of accessories, kids’ items, jewelry, car
+          essentials, and more.
         </p>
-
-        {/* Sort Dropdown */}
         <div className="flex justify-end">
-          <div className=" text-sm">
-          <label className="mr-2 font-medium">Sort by price:</label>
-          <select
-            className="border border-gray-300 rounded px-2 py-1"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-          >
-            <option value="default">Default</option>
-            <option value="asc">Low → High</option>
-            <option value="desc">High → Low</option>
-          </select>
-        </div>
+          <div className="text-sm">
+            <label className="mr-2 font-medium">Sort by price:</label>
+            <select
+              className="border border-gray-300 rounded px-2 py-1"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+            >
+              <option value="default">Default</option>
+              <option value="asc">Low → High</option>
+              <option value="desc">High → Low</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-10">
-        {/* Sidebar Categories */}
-        <aside>
-          <p className="text-xs tracking-widest mb-6">CATEGORIES</p>
+      {/* Categories mobile */}
+      <div className="md:hidden mb-6 overflow-x-auto">
+        <div className="flex flex-wrap gap-2 max-h-[5rem]">
+          {categories.map((cat, i) => (
+            <button
+              key={i}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
+                selectedCategory === cat
+                  ? "bg-black text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              {cat.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
 
+      <div className="grid md:grid-cols-4 gap-6">
+        {/* Sidebar desktop */}
+        <aside className="hidden md:block">
+          <p className="text-xs tracking-widest mb-6">CATEGORIES</p>
           <div className="space-y-3 text-sm text-gray-500">
             {categories.map((cat, i) => (
               <p
@@ -155,100 +189,146 @@ export default function Collections() {
           </div>
         </aside>
 
-        {/* Products Grid */}
-        <div className="md:col-span-3 grid md:grid-cols-3 grid-cols-2 gap-8">
-          {loading ? (
-            <p className="text-sm text-gray-400">Loading products...</p>
-          ) : filteredProducts.length === 0 ? (
-            <p className="text-sm text-gray-400">No products found.</p>
-          ) : (
-            filteredProducts.map((product) => (
-              <motion.div
-                key={product.id}
-                whileHover={{ y: -6 }}
-                className="group relative cursor-pointer bg-white rounded-lg shadow-md overflow-hidden border border-gray-100"
-              >
-                {/* Favourite Icon */}
-                <div
-                  onClick={() => toggleFavorite(product.id)}
-                  className={`absolute top-2 left-2 z-10 p-2 rounded-full shadow-md hover:scale-110 transition cursor-pointer ${
-                    favorites.includes(product.id)
-                      ? "bg-red-100 text-red-500"
-                      : "bg-white text-gray-400"
-                  }`}
-                >
-                  <AiFillHeart size={20} />
-                </div>
-
-                {/* Product Image */}
-                <Link href={`/collections/${product.id}`}>
-                  <div
-                    id={`img-${product.id}`}
-                    className="relative h-[320px] overflow-hidden mb-4"
-                  >
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition duration-500"
-                    />
-                  </div>
-
-                  {/* Product Info */}
-                  <div className="px-4 pb-4">
-                    <h3 className="text-sm mb-1 font-medium">{product.name}</h3>
-                    <p className="text-sm text-gray-500 font-semibold">
-                      ${product.price}
-                    </p>
-                  </div>
-                </Link>
-
-                {/* Cart Icon */}
+        {/* Product grid */}
+        <div className="md:col-span-3 grid md:grid-cols-3 grid-cols-2 gap-4">
+          {loading
+            ? Array.from({ length: visibleCount }).map((_, i) => (
+                <div key={i}>{renderSkeleton()}</div>
+              ))
+            : filteredProducts.length === 0
+            ? <p className="text-sm text-gray-400">No products found.</p>
+            : filteredProducts.slice(0, visibleCount).map((product) => (
                 <motion.div
-                  onClick={() => addToCart(product)}
-                  whileTap={{ scale: 1.2 }}
-                  className={`absolute bottom-2 right-2 z-10 p-2 rounded-full shadow-md cursor-pointer transition ${
-                    cart.includes(product.id)
-                      ? "bg-green-100 text-green-600"
-                      : "bg-white text-gray-800 hover:scale-110"
-                  }`}
+                  key={product.id}
+                  whileHover={{ y: -6 }}
+                  transition={{ type: "spring", stiffness: 200 }}
+                  className="group border border-gray-200 p-3 bg-white cursor-pointer relative"
+                  onMouseEnter={() =>
+                    product.images.length > 1 &&
+                    setHoverImages((prev) => ({
+                      ...prev,
+                      [product.id]: product.images[1],
+                    }))
+                  }
+                  onMouseLeave={() =>
+                    product.images.length > 1 &&
+                    setHoverImages((prev) => ({
+                      ...prev,
+                      [product.id]: product.images[0],
+                    }))
+                  }
                 >
-                  <AiOutlineShoppingCart size={20} />
+                  {/* Favorite */}
+                  <div
+                    onClick={() => toggleFavorite(product.id)}
+                    className={`absolute top-2 left-2 z-10 p-2 rounded-full transition cursor-pointer ${
+                      favorites.includes(product.id)
+                        ? "text-red-500"
+                        : "text-gray-400 hover:text-black"
+                    }`}
+                  >
+                    <AiFillHeart size={18} />
+                  </div>
+
+                  {/* Image */}
+                  <Link href={`/collections/${product.id}`}>
+                    <div
+                      id={`img-${product.id}`}
+                      className="relative h-[200px] md:h-[260px] overflow-hidden mb-4"
+                    >
+                      {/* Desktop hover */}
+                      <Image
+                        src={hoverImages[product.id] || product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition duration-500 hidden md:block"
+                      />
+                      {/* Mobile swipe */}
+                      <div className="md:hidden relative w-full h-full overflow-hidden">
+                        <Image
+                          src={product.images[mobileIndex[product.id] || 0]}
+                          alt={product.name}
+                          fill
+                          className="object-cover transition duration-500"
+                        />
+                        {product.images.length > 1 && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleSwipe(product.id, -1);
+                              }}
+                              className="absolute left-1 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded-full"
+                            >
+                              ‹
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleSwipe(product.id, 1);
+                              }}
+                              className="absolute right-1 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded-full"
+                            >
+                              ›
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div>
+                      <h3 className="text-sm tracking-widest mb-1">
+                        {product.name.toUpperCase()}
+                      </h3>
+                      <p className="text-sm text-gray-500 leading-relaxed">
+                        ${product.price}
+                      </p>
+                    </div>
+                  </Link>
+
+                  {/* Cart */}
+                  <motion.div
+                    onClick={() => addToCart(product)}
+                    whileTap={{ scale: 1.2 }}
+                    className={`absolute bottom-2 right-2 z-10 cursor-pointer transition ${
+                      cart.includes(product.id)
+                        ? "text-green-600"
+                        : "text-gray-500 hover:text-black"
+                    }`}
+                  >
+                    <AiOutlineShoppingCart size={20} />
+                  </motion.div>
+
+                  <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-black transition-all duration-300 group-hover:w-full"></div>
                 </motion.div>
-              </motion.div>
-            ))
+              ))}
+        </div>
+      </div>
+
+      {/* Load More / Load Less */}
+      {filteredProducts.length > 18 && (
+        <div className="text-center mt-6 flex justify-center gap-4 flex-wrap">
+          {visibleCount < filteredProducts.length && (
+            <button
+              onClick={loadMore}
+              className="bg-black text-white px-6 py-3 tracking-widest text-sm hover:bg-white hover:text-black transition"
+            >
+              LOAD MORE
+            </button>
+          )}
+          {visibleCount > 18 && (
+            <button
+              onClick={() => setVisibleCount(18)}
+              className="bg-black text-white px-6 py-3 tracking-widest text-sm hover:bg-white hover:text-black transition"
+            >
+              LOAD LESS
+            </button>
           )}
         </div>
-      </div>
+      )}
 
-
-      {/* Promotional Banner */}
-      <div className="mt-24 grid md:grid-cols-2 gap-10 items-center bg-gray-50 p-6 rounded-lg">
-        <div className="relative h-[400px] overflow-hidden rounded-lg">
-          <Image
-            src="/banner.jpg"
-            alt="Featured Products"
-            fill
-            className="object-cover"
-          />
-        </div>
-
-        <div>
-          <h2 className="text-3xl font-semibold mb-4">
-            ELEVATE YOUR STYLE
-          </h2>
-
-          <p className="text-sm text-gray-500 leading-relaxed mb-6">
-            Shop the latest in fashion, accessories, kids’ essentials, and home
-            must-haves. High-quality products designed for everyday life.
-          </p>
-
-          <div className="flex gap-6 text-xs tracking-widest">
-            <button className="border-b border-gray-800">VIEW JOURNAL</button>
-            <button className="border-b border-gray-800">LEARN MORE</button>
-          </div>
-        </div>
-      </div>
+      <div ref={cartRef} className="fixed top-6 right-6 w-10 h-10 z-50"></div>
     </section>
   );
 }

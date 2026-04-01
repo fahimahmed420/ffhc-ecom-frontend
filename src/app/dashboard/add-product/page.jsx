@@ -1,39 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function AddProductPage() {
   const [images, setImages] = useState([""]);
-  const [tags, setTags] = useState([]);
-  const [selectedTags, setSelectedTags] = useState([]);
 
-  // ✅ Fetch products and extract unique tags
-  useEffect(() => {
-    const fetchTags = async () => {
-      try {
-        const res = await fetch("https://dummyjson.com/products?limit=100");
-        const data = await res.json();
-
-        const allTags = data.products.flatMap(product => product.tags);
-        const uniqueTags = [...new Set(allTags)];
-
-        setTags(uniqueTags);
-      } catch (err) {
-        console.error("Failed to fetch tags", err);
-      }
-    };
-
-    fetchTags();
-  }, []);
-
-  // ✅ Toggle tag selection
-  const toggleTag = (tag) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag)
-        ? prev.filter((t) => t !== tag)
-        : [...prev, tag]
-    );
+  // ✅ Categories with subcategories
+  const categoriesData = {
+    Electronics: ["Phones", "Laptops", "Accessories"],
+    Fashion: ["Men", "Women", "Kids"],
+    "Home & Living": ["Furniture", "Decor", "Kitchen"],
+    Beauty: ["Skincare", "Makeup", "Haircare"],
+    Sports: ["Fitness", "Outdoor", "Equipment"],
+    Automotive: ["Car Accessories", "Motorbike", "Tools"],
+    Gaming: ["Consoles", "Games", "Accessories"],
+    Grocery: ["Snacks", "Beverages", "Daily Essentials"],
+    Books: ["Fiction", "Non-fiction", "Educational"],
   };
+
+  const [category, setCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
 
   const addImageField = () => {
     if (images.length < 5) {
@@ -61,8 +47,9 @@ export default function AddProductPage() {
       shippingInformation: e.target.shipping.value,
       availabilityStatus: e.target.availability.value,
       returnPolicy: e.target.returnPolicy.value,
-      tags: selectedTags,
-      images: images.filter(img => img !== ""),
+      category,
+      subCategory,
+      images: images.filter((img) => img !== ""),
     };
 
     console.log(formData);
@@ -93,28 +80,40 @@ export default function AddProductPage() {
           required
         />
 
-        {/* ✅ Tags Selection */}
-        <div>
-          <p className="text-xs tracking-widest uppercase text-gray-500 mb-2">
-            Select Tags
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => (
-              <button
-                type="button"
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`border px-3 py-1 text-xs uppercase tracking-widest transition ${
-                  selectedTags.includes(tag)
-                    ? "bg-black text-white"
-                    : "hover:bg-black hover:text-white"
-                }`}
-              >
-                {tag}
-              </button>
+        {/* Category + Subcategory */}
+        <div className="grid grid-cols-2 gap-4">
+          <select
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setSubCategory("");
+            }}
+            className="border border-gray-300 px-4 py-2 text-sm outline-none"
+            required
+          >
+            <option value="">Select Category</option>
+            {Object.keys(categoriesData).map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
             ))}
-          </div>
+          </select>
+
+          <select
+            value={subCategory}
+            onChange={(e) => setSubCategory(e.target.value)}
+            className="border border-gray-300 px-4 py-2 text-sm outline-none"
+            disabled={!category}
+            required
+          >
+            <option value="">Select Subcategory</option>
+            {category &&
+              categoriesData[category].map((sub) => (
+                <option key={sub} value={sub}>
+                  {sub}
+                </option>
+              ))}
+          </select>
         </div>
 
         {/* Price + Discount */}
@@ -152,7 +151,7 @@ export default function AddProductPage() {
           />
         </div>
 
-        {/* Warranty + Shipping */}
+        {/* Warranty */}
         <input
           name="warranty"
           type="text"
@@ -160,6 +159,7 @@ export default function AddProductPage() {
           className="w-full border border-gray-300 px-4 py-2 text-sm outline-none"
         />
 
+        {/* Shipping */}
         <input
           name="shipping"
           type="text"

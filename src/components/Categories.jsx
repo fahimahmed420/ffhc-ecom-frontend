@@ -1,93 +1,59 @@
 "use client";
 
 import Image from "next/image";
+import { motion } from "framer-motion";
 
 export default function Categories() {
+  const categories = [
+    { name: "Electronics", img: "/categories/Electronics.jpg" },
+    { name: "Fashion", img: "/categories/Fashion.jpg" },
+    { name: "Home & Living", img: "/categories/Home.jpg" },
+    { name: "Beauty", img: "/categories/Beauty.jpg" },
+    { name: "Sports", img: "/categories/Sports.jpg" },
+    { name: "Automotive", img: "/categories/Automotive.jpg" },
+    { name: "Gaming", img: "/categories/Gaming.jpg" },
+    { name: "Grocery", img: "/categories/Grocery.jpg" },
+    { name: "Books", img: "/categories/Books.jpg" },
+  ];
+
   return (
-    <section className="bg-[#f7f7f7] px-6 md:px-12 py-16 md:py-24">
+    <section className="px-6 md:px-12 py-20 max-w-7xl mx-auto">
 
-      {/* Header */}
-      <div className="flex justify-between items-end mb-12">
-        <div>
-          <h2 className="text-xl md:text-2xl font-medium">
-            Browse Archives
-          </h2>
-          <p className="text-xs text-gray-500 mt-2">
-            Curated pathways for every expression.
-          </p>
-        </div>
+      {/* Heading (same style as your section) */}
+      <h2 className="text-2xl mb-12 text-center font-semibold">
+        Browse Categories
+      </h2>
 
-        <span className="text-[10px] tracking-widest text-gray-500">
-          ALL CATEGORIES
-        </span>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-6">
-
-        {/* LEFT BIG */}
-        <div className="relative h-[420px] md:h-[520px] overflow-hidden">
-          <Image
-            src="/categories/Men.jpg"
-            alt="Menswear"
-            fill
-            className="object-cover"
-          />
-          <div className="absolute inset-0 bg-black/20"></div>
-          <p className="absolute bottom-6 left-6 text-white text-sm tracking-widest">
-            MENSWEAR
-          </p>
-        </div>
-
-        {/* RIGHT */}
-        <div className="md:col-span-2 grid gap-6">
-
-          {/* Electronics */}
-          <div className="relative h-[240px] overflow-hidden">
+      {/* Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+        {categories.map((cat, i) => (
+          <motion.div
+            key={i}
+            whileHover={{ y: -6 }}
+            transition={{ type: "spring", stiffness: 200 }}
+            className="group relative h-[180px] md:h-[220px] overflow-hidden cursor-pointer border border-gray-200 bg-white"
+          >
             <Image
-              src="/categories/Electronics.jpg"
-              alt="Electronics"
+              src={cat.img}
+              alt={cat.name}
               fill
-              className="object-cover"
+              className="object-cover group-hover:scale-105 transition duration-500"
             />
-            <div className="absolute inset-0 bg-black/20"></div>
-            <p className="absolute bottom-6 left-6 text-white text-sm tracking-widest">
-              ELECTRONICS
+
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition" />
+
+            {/* Title */}
+            <p className="absolute bottom-4 left-4 text-white text-xs tracking-widest">
+              {cat.name.toUpperCase()}
             </p>
-          </div>
 
-          {/* Bottom grid */}
-          <div className="grid grid-cols-2 gap-6">
-
-            <div className="relative h-[240px] overflow-hidden">
-              <Image
-                src="/categories/Women.jpg"
-                alt="Womenswear"
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-black/20"></div>
-              <p className="absolute bottom-6 left-6 text-white text-xs tracking-widest">
-                WOMENSWEAR
-              </p>
-            </div>
-
-            <div className="relative h-[240px] overflow-hidden">
-              <Image
-                src="/categories/Kids.jpg"
-                alt="Kids"
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-black/20"></div>
-              <p className="absolute bottom-6 left-6 text-white text-xs tracking-widest">
-                KIDS
-              </p>
-            </div>
-
-          </div>
-
-        </div>
+            {/* Bottom hover line (same vibe as your cards) */}
+            <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-white transition-all duration-300 group-hover:w-full" />
+          </motion.div>
+        ))}
       </div>
+
     </section>
   );
 }

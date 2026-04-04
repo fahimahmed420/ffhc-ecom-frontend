@@ -30,23 +30,24 @@ export default function AuthPage() {
   const redirectPath = searchParams.get("from") || "/";
 
   // ✅ Save user to MongoDB
-  const saveUserToDB = async (user, name = "") => {
-    try {
-      await fetch("/api/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          uid: user.uid,
-          email: user.email,
-          name: name || user.displayName || "",
-        }),
-      });
-    } catch (err) {
-      console.error("DB save error:", err);
-    }
-  };
+ const saveUserToDB = async (user, name = "") => {
+  try {
+    await fetch("/api/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        uid: user.uid,
+        email: user.email,
+        name: name || user.displayName || "",
+        photo: user.photoURL || "",
+      }),
+    });
+  } catch (err) {
+    console.error("DB save error:", err);
+  }
+};
 
   // ✅ Validation
   const validate = () => {

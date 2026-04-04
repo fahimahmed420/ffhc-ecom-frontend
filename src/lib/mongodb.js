@@ -3,7 +3,7 @@ import { MongoClient, ServerApiVersion } from "mongodb";
 const uri = process.env.MONGODB_URI;
 
 if (!uri) {
-  throw new Error("Please add MONGODB_URI to .env.local");
+  throw new Error("Please add MONGODB_URI in .env.local");
 }
 
 let client;

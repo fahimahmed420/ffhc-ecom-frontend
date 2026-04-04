@@ -1,19 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { ShoppingBag, Search, User, Menu, X } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ShoppingBag, Search, User, Menu, X, LogOut } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 
+// ✅ import auth
+import { logoutUser } from "@/lib/firebase/auth";
+import { useAuth } from "@/context/AuthContext";
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const router = useRouter();
   const { cart } = useCart();
+  const { user } = useAuth();
+
+  const dropdownRef = useRef(null);
 
   const navItems = [
     { name: "HOME", path: "/" },
@@ -21,15 +29,35 @@ export default function Navbar() {
     { name: "ABOUT", path: "/about" },
   ];
 
-  // 🔍 Handle Search
+  // 🔍 Search
   const handleSearch = async () => {
     if (!query.trim()) return;
-
     router.push(`/collections?search=${query}`);
-
-    // optional API call (for logging/debug)
     await fetch(`https://dummyjson.com/products/search?q=${query}`);
   };
+
+  // 🔓 Logout
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      setDropdownOpen(false);
+      router.push("/");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // ❌ Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <nav className="border-b border-gray-300 px-6 md:px-12 py-4 flex justify-between items-center relative">
@@ -54,7 +82,7 @@ export default function Navbar() {
       {/* Right Section */}
       <div className="flex items-center gap-4 relative">
 
-        {/* 🔍 Search Input */}
+        {/* 🔍 Search */}
         <AnimatePresence>
           {showSearch && (
             <motion.input
@@ -72,13 +100,8 @@ export default function Navbar() {
           )}
         </AnimatePresence>
 
-        {/* Search Icon */}
         {showSearch ? (
-          <X
-            size={16}
-            className="cursor-pointer"
-            onClick={() => setShowSearch(false)}
-          />
+          <X size={16} className="cursor-pointer" onClick={() => setShowSearch(false)} />
         ) : (
           <Search
             size={16}
@@ -88,10 +111,7 @@ export default function Navbar() {
         )}
 
         {/* Cart */}
-        <div
-          className="relative cursor-pointer"
-          onClick={() => router.push("/cart")}
-        >
+        <div className="relative cursor-pointer" onClick={() => router.push("/cart")}>
           <ShoppingBag className="hover:scale-110 transition" size={16} />
           {cart.length > 0 && (
             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
@@ -100,18 +120,61 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* User */}
-        <User
-          size={16}
-          className="cursor-pointer hover:scale-110 transition"
-          onClick={() => router.push("/auth")}
-        />
+        {/* 👤 AUTH SECTION */}
+        <div className="relative" ref={dropdownRef}>
+
+          {!user ? (
+            // 🔐 NOT LOGGED IN → SHOW LOGIN BUTTON
+            <button
+              onClick={() => router.push("/auth")}
+              className="text-xs border px-3 py-1 hover:bg-black hover:text-white transition tracking-widest"
+            >
+              LOGIN
+            </button>
+          ) : (
+            // 👤 LOGGED IN → USER ICON
+            <div className="relative">
+              <User
+                size={16}
+                className="cursor-pointer hover:scale-110 transition"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+              />
+
+              {/* Dropdown */}
+              <AnimatePresence>
+                {dropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute right-0 mt-3 w-40 bg-white border shadow-md text-sm z-50"
+                  >
+                    <button
+                      onClick={() => {
+                        router.push("/dashboard");
+                        setDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      Dashboard
+                    </button>
+
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <LogOut size={14} />
+                      Logout
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
 
         {/* Mobile Menu */}
-        <Menu
-          className="md:hidden cursor-pointer"
-          onClick={() => setOpen(!open)}
-        />
+        <Menu className="md:hidden cursor-pointer" onClick={() => setOpen(!open)} />
       </div>
 
       {/* Mobile Menu */}
@@ -124,11 +187,7 @@ export default function Navbar() {
           <ul className="space-y-4 text-sm">
             {navItems.map((item) => (
               <li key={item.name}>
-                <Link
-                  href={item.path}
-                  onClick={() => setOpen(false)}
-                  className="block"
-                >
+                <Link href={item.path} onClick={() => setOpen(false)}>
                   {item.name}
                 </Link>
               </li>

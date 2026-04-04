@@ -20,24 +20,29 @@ export default function Collections() {
   const [hoverImages, setHoverImages] = useState({});
   const [mobileIndex, setMobileIndex] = useState({});
 
+  // ✅ FIXED FETCH (MongoDB + categories + _id safe)
   useEffect(() => {
-    fetch("https://dummyjson.com/products?limit=100")
+    fetch("/api/products")
       .then((res) => res.json())
       .then((data) => {
-        const formatted = data.products.map((p) => ({
-          id: p.id,
-          name: p.title,
-          price: p.price,
-          image: p.thumbnail,
-          images: p.images.length > 1 ? p.images : [p.thumbnail],
-          category: p.category,
+        const formatted = data.map((p) => ({
+          ...p,
+          _id: p._id.toString(),
         }));
+
         setProducts(formatted);
+
+        // ✅ dynamic categories
         const uniqueCategories = [
           "All",
-          ...Array.from(new Set(formatted.map((p) => p.category))),
+          ...new Set(formatted.map((p) => p.category)),
         ];
         setCategories(uniqueCategories);
+
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
         setLoading(false);
       });
   }, []);
@@ -59,9 +64,9 @@ export default function Collections() {
   };
 
   const addToCart = (product) => {
-    if (!cart.includes(product.id)) {
-      setCart((prev) => [...prev, product.id]);
-      const img = document.getElementById(`img-${product.id}`);
+    if (!cart.includes(product._id)) {
+      setCart((prev) => [...prev, product._id]);
+      const img = document.getElementById(`img-${product._id}`);
       if (img && cartRef.current) {
         const clone = img.cloneNode(true);
         const rect = img.getBoundingClientRect();
@@ -81,7 +86,9 @@ export default function Collections() {
           [
             { transform: "translate(0,0) scale(1)", opacity: 1 },
             {
-              transform: `translate(${cartRect.left - rect.left}px, ${cartRect.top - rect.top}px) scale(0.2)`,
+              transform: `translate(${cartRect.left - rect.left}px, ${
+                cartRect.top - rect.top
+              }px) scale(0.2)`,
               opacity: 0.5,
             },
           ],
@@ -93,14 +100,19 @@ export default function Collections() {
 
   const loadMore = () => setVisibleCount((prev) => prev + 18);
 
+  // ✅ FIXED swipe (_id instead of id + safety)
   const handleSwipe = (id, direction) => {
     setMobileIndex((prev) => {
       const current = prev[id] || 0;
-      const maxIndex =
-        filteredProducts.find((p) => p.id === id).images.length - 1;
+      const product = filteredProducts.find((p) => p._id === id);
+      if (!product || !product.images) return prev;
+
+      const maxIndex = product.images.length - 1;
+
       let nextIndex = current + direction;
       if (nextIndex < 0) nextIndex = maxIndex;
       if (nextIndex > maxIndex) nextIndex = 0;
+
       return { ...prev, [id]: nextIndex };
     });
   };
@@ -169,7 +181,7 @@ export default function Collections() {
       </div>
 
       <div className="grid md:grid-cols-4 gap-6">
-        {/* Sidebar desktop */}
+        {/* Sidebar */}
         <aside className="hidden md:block">
           <p className="text-xs tracking-widest mb-6">CATEGORIES</p>
           <div className="space-y-3 text-sm text-gray-500">
@@ -189,7 +201,7 @@ export default function Collections() {
           </div>
         </aside>
 
-        {/* Product grid */}
+        {/* Products */}
         <div className="md:col-span-3 grid md:grid-cols-3 grid-cols-2 gap-4">
           {loading
             ? Array.from({ length: visibleCount }).map((_, i) => (
@@ -199,30 +211,31 @@ export default function Collections() {
             ? <p className="text-sm text-gray-400">No products found.</p>
             : filteredProducts.slice(0, visibleCount).map((product) => (
                 <motion.div
-                  key={product.id}
+                  key={product._id}
                   whileHover={{ y: -6 }}
                   transition={{ type: "spring", stiffness: 200 }}
                   className="group border border-gray-200 p-3 bg-white cursor-pointer relative"
                   onMouseEnter={() =>
-                    product.images.length > 1 &&
+                    product.images?.length > 1 &&
                     setHoverImages((prev) => ({
                       ...prev,
-                      [product.id]: product.images[1],
+                      [product._id]: product.images[1],
                     }))
                   }
                   onMouseLeave={() =>
-                    product.images.length > 1 &&
+                    product.images?.length > 1 &&
                     setHoverImages((prev) => ({
                       ...prev,
-                      [product.id]: product.images[0],
+                      [product._id]:
+                        product.images?.[0] || product.thumbnail,
                     }))
                   }
                 >
                   {/* Favorite */}
                   <div
-                    onClick={() => toggleFavorite(product.id)}
-                    className={`absolute top-2 left-2 z-10 p-2 rounded-full transition cursor-pointer ${
-                      favorites.includes(product.id)
+                    onClick={() => toggleFavorite(product._id)}
+                    className={`absolute top-2 left-2 z-10 p-2 rounded-full ${
+                      favorites.includes(product._id)
                         ? "text-red-500"
                         : "text-gray-400 hover:text-black"
                     }`}
@@ -231,68 +244,50 @@ export default function Collections() {
                   </div>
 
                   {/* Image */}
-                  <Link href={`/collections/${product.id}`}>
+                  <Link href={`/collections/${product._id}`}>
                     <div
-                      id={`img-${product.id}`}
+                      id={`img-${product._id}`}
                       className="relative h-[200px] md:h-[260px] overflow-hidden mb-4"
                     >
-                      {/* Desktop hover */}
                       <Image
-                        src={hoverImages[product.id] || product.image}
-                        alt={product.name}
+                        src={
+                          hoverImages[product._id] ||
+                          product.images?.[0] ||
+                          product.thumbnail
+                        }
+                        alt={product.title}
                         fill
                         className="object-cover group-hover:scale-105 transition duration-500 hidden md:block"
                       />
-                      {/* Mobile swipe */}
-                      <div className="md:hidden relative w-full h-full overflow-hidden">
+
+                      <div className="md:hidden relative w-full h-full">
                         <Image
-                          src={product.images[mobileIndex[product.id] || 0]}
-                          alt={product.name}
+                          src={
+                            product.images?.[
+                              mobileIndex[product._id] || 0
+                            ] || product.thumbnail
+                          }
+                          alt={product.title}
                           fill
-                          className="object-cover transition duration-500"
+                          className="object-cover"
                         />
-                        {product.images.length > 1 && (
-                          <>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleSwipe(product.id, -1);
-                              }}
-                              className="absolute left-1 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded-full"
-                            >
-                              ‹
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleSwipe(product.id, 1);
-                              }}
-                              className="absolute right-1 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white p-1 rounded-full"
-                            >
-                              ›
-                            </button>
-                          </>
-                        )}
                       </div>
                     </div>
 
-                    {/* Info */}
-                    <div>
-                      <h3 className="text-sm tracking-widest mb-1">
-                        {product.name.toUpperCase()}
-                      </h3>
-                      <p className="text-sm text-gray-500 leading-relaxed">
-                        ${product.price}
-                      </p>
-                    </div>
+                    <h3 className="text-sm tracking-widest mb-1">
+                      {product.title?.toUpperCase() || "NO TITLE"}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      ${product.price}
+                    </p>
                   </Link>
 
                   {/* Cart */}
                   <motion.div
                     onClick={() => addToCart(product)}
                     whileTap={{ scale: 1.2 }}
-                    className={`absolute bottom-2 right-2 z-10 cursor-pointer transition ${
-                      cart.includes(product.id)
+                    className={`absolute bottom-2 right-2 ${
+                      cart.includes(product._id)
                         ? "text-green-600"
                         : "text-gray-500 hover:text-black"
                     }`}
@@ -300,30 +295,17 @@ export default function Collections() {
                     <AiOutlineShoppingCart size={20} />
                   </motion.div>
 
-                  <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-black transition-all duration-300 group-hover:w-full"></div>
+                  <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-black group-hover:w-full transition-all"></div>
                 </motion.div>
               ))}
         </div>
       </div>
 
-      {/* Load More / Load Less */}
+      {/* Load More */}
       {filteredProducts.length > 18 && (
-        <div className="text-center mt-6 flex justify-center gap-4 flex-wrap">
+        <div className="text-center mt-6 flex justify-center gap-4">
           {visibleCount < filteredProducts.length && (
-            <button
-              onClick={loadMore}
-              className="bg-black text-white px-6 py-3 tracking-widest text-sm hover:bg-white hover:text-black transition"
-            >
-              LOAD MORE
-            </button>
-          )}
-          {visibleCount > 18 && (
-            <button
-              onClick={() => setVisibleCount(18)}
-              className="bg-black text-white px-6 py-3 tracking-widest text-sm hover:bg-white hover:text-black transition"
-            >
-              LOAD LESS
-            </button>
+            <button onClick={loadMore}>LOAD MORE</button>
           )}
         </div>
       )}

@@ -34,41 +34,48 @@ export default function ProductPage() {
   useEffect(() => {
     setLoading(true);
 
-    fetch(`https://dummyjson.com/products/${id}`)
+    fetch("/api/products")
       .then((res) => res.json())
-      .then(async (data) => {
-        setProduct(data);
-        setMainImage(data.thumbnail);
+      .then((data) => {
+        const formatted = data.map((p) => ({
+          ...p,
+          _id: p._id.toString(),
+        }));
 
-        const apiReviews = (data.reviews || []).map((r, index) => ({
+        const found = formatted.find((p) => p._id === id);
+
+        if (!found) {
+          setLoading(false);
+          return;
+        }
+
+        setProduct(found);
+        setMainImage(found.images?.[0] || found.thumbnail);
+
+        // ✅ Format reviews
+        const apiReviews = (found.reviews || []).map((r, index) => ({
           id: index + 1,
-          name: r.reviewerName,
+          name: r.reviewerName || r.name,
           rating: r.rating,
           comment: r.comment,
         }));
 
-        const storedReviews =
-          JSON.parse(localStorage.getItem(`reviews-${id}`)) || [];
-
+        const storedReviews = JSON.parse(localStorage.getItem(`reviews-${id}`)) || [];
         setReviews([...apiReviews, ...storedReviews]);
 
-        const storedWishlist =
-          JSON.parse(localStorage.getItem("wishlist")) || [];
+        // ✅ Wishlist
+        const storedWishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
         setWishlist(storedWishlist);
 
-        const relatedRes = await fetch(
-          `https://dummyjson.com/products/category/${encodeURIComponent(
-            data.category,
-          )}`,
-        );
-        const relatedData = await relatedRes.json();
+        // ✅ Related products
+        const relatedProducts = formatted
+          .filter((p) => p.category === found.category && p._id !== found._id)
+          .slice(0, 4);
 
-        setRelated(
-          relatedData.products.filter((p) => p.id !== data.id).slice(0, 4),
-        );
-
+        setRelated(relatedProducts);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [id]);
 
   const showToast = (msg) => {
@@ -76,36 +83,9 @@ export default function ProductPage() {
     setTimeout(() => setToast(null), 2000);
   };
 
- if (loading) return <ProductSkeleton />;
-  if (!product) return <p className="text-center mt-20">Not found</p>;
-
-  const discountedPrice = product.discountPercentage
-    ? (product.price * (100 - product.discountPercentage)) / 100
-    : product.price;
-
-  const inStock = product.availabilityStatus === "In Stock";
-
-  const isWishlisted = wishlist.find((item) => item.id === product.id);
-
-  const toggleWishlist = () => {
-    let updated;
-
-    if (isWishlisted) {
-      updated = wishlist.filter((item) => item.id !== product.id);
-      showToast("Removed from wishlist");
-    } else {
-      updated = [...wishlist, product];
-      showToast("Added to wishlist ❤️");
-    }
-
-    setWishlist(updated);
-    localStorage.setItem("wishlist", JSON.stringify(updated));
-  };
-
   const handleAddToCart = () => {
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
-
-    const existing = cart.find((item) => item.id === product.id);
+    const existing = cart.find((item) => item._id === product._id);
 
     if (existing) {
       existing.quantity += quantity;
@@ -117,142 +97,72 @@ export default function ProductPage() {
     showToast("Added to cart 🛒");
   };
 
-  const avgRating =
-    reviews.length > 0
-      ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
-      : 0;
+  const toggleWishlist = () => {
+    let updated;
+    const isWishlisted = wishlist.find((item) => item._id === product._id);
+
+    if (isWishlisted) {
+      updated = wishlist.filter((item) => item._id !== product._id);
+      showToast("Removed from wishlist");
+    } else {
+      updated = [...wishlist, product];
+      showToast("Added to wishlist ❤️");
+    }
+
+    setWishlist(updated);
+    localStorage.setItem("wishlist", JSON.stringify(updated));
+  };
 
   const handleReviewSubmit = () => {
     if (!newReview.name || !newReview.comment) return;
-
-    const newEntry = {
-      ...newReview,
-      id: Date.now(),
-    };
-
+    const newEntry = { ...newReview, id: Date.now() };
     const updated = [...reviews, newEntry];
-
     setReviews(updated);
 
     const localOnly = JSON.parse(localStorage.getItem(`reviews-${id}`)) || [];
-
-    localStorage.setItem(
-      `reviews-${id}`,
-      JSON.stringify([...localOnly, newEntry]),
-    );
+    localStorage.setItem(`reviews-${id}`, JSON.stringify([...localOnly, newEntry]));
 
     setShowReviewModal(false);
     setNewReview({ name: "", rating: 5, comment: "" });
-
     showToast("Review submitted ⭐");
   };
-  function ProductSkeleton() {
-    return (
-      <section className="max-w-7xl mx-auto px-6 md:px-12 py-20 animate-pulse">
-        {/* Breadcrumb */}
-        <div className="h-4 w-1/3 bg-gray-200 rounded mb-6" />
 
-        <div className="grid md:grid-cols-2 gap-12">
-          {/* Left Image Skeleton */}
-          <div className="border border-gray-200 rounded-xl p-4">
-            <div className="h-[450px] w-full bg-gray-200 rounded-lg mb-4" />
+  if (loading) return <ProductSkeleton />;
+  if (!product) return <p className="text-center mt-20 text-gray-500">Product not found</p>;
 
-            <div className="grid grid-cols-4 gap-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-24 bg-gray-200 rounded-lg" />
-              ))}
-            </div>
-          </div>
+  const discountedPrice = product.discountPercentage
+    ? (product.price * (100 - product.discountPercentage)) / 100
+    : product.price;
 
-          {/* Right Info Skeleton */}
-          <div className="space-y-4">
-            <div className="h-4 w-1/4 bg-gray-200 rounded" />
-
-            <div className="h-8 w-3/4 bg-gray-200 rounded" />
-
-            <div className="h-4 w-1/2 bg-gray-200 rounded" />
-
-            <div className="flex gap-4">
-              <div className="h-6 w-20 bg-gray-200 rounded" />
-              <div className="h-6 w-24 bg-gray-200 rounded" />
-            </div>
-
-            <div className="h-20 w-full bg-gray-200 rounded" />
-
-            <div className="h-4 w-1/3 bg-gray-200 rounded" />
-
-            {/* Buttons */}
-            <div className="flex gap-4">
-              <div className="h-10 w-32 bg-gray-200 rounded" />
-              <div className="h-10 w-40 bg-gray-200 rounded" />
-            </div>
-
-            <div className="h-10 w-full bg-gray-200 rounded" />
-
-            {/* Shipping boxes */}
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="h-28 bg-gray-200 rounded-lg" />
-              <div className="h-28 bg-gray-200 rounded-lg" />
-            </div>
-          </div>
-        </div>
-
-        {/* Reviews Skeleton */}
-        <div className="mt-20">
-          <div className="flex justify-between mb-6">
-            <div className="h-6 w-40 bg-gray-200 rounded" />
-            <div className="h-10 w-32 bg-gray-200 rounded" />
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded-xl" />
-            ))}
-          </div>
-        </div>
-
-        {/* Related Products Skeleton */}
-        <div className="mt-20">
-          <div className="h-6 w-48 bg-gray-200 rounded mb-6" />
-
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="border border-gray-200 rounded-xl overflow-hidden"
-              >
-                <div className="h-48 bg-gray-200" />
-                <div className="p-4 space-y-2">
-                  <div className="h-4 w-full bg-gray-200 rounded" />
-                  <div className="h-4 w-2/3 bg-gray-200 rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
+  const inStock = product.availabilityStatus === "In Stock" || (product.stock > 0);
+  const isWishlisted = wishlist.find((item) => item._id === product._id);
+  const avgRating = reviews.length > 0 ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length : 0;
 
   return (
     <section className="max-w-7xl mx-auto px-6 md:px-12 py-20">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-black text-white px-6 py-3 rounded-full shadow-2xl animate-bounce">
+          {toast}
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <div className="text-sm text-gray-500 mb-6">
-        <Link href="/">Home</Link> &gt;{" "}
-        <Link href="/collections">Collections</Link> &gt;{" "}
+        <Link href="/" className="hover:text-black">Home</Link> &gt;{" "}
+        <Link href="/collections" className="hover:text-black">Collections</Link> &gt;{" "}
         <span className="text-black">{product.title}</span>
       </div>
 
       <div className="grid md:grid-cols-2 gap-12">
-        {/* Images */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="relative h-[450px] w-full mb-4 rounded-lg overflow-hidden border border-gray-200">
+        {/* Images Column */}
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm h-fit">
+          <div className="relative h-[450px] w-full mb-4 rounded-lg overflow-hidden border border-gray-100">
             <Image
               src={mainImage}
               alt={product.title}
               fill
               priority
-              quality={100}
               className="object-contain"
             />
           </div>
@@ -263,266 +173,241 @@ export default function ProductPage() {
                 key={i}
                 onClick={() => setMainImage(img)}
                 className={`cursor-pointer h-24 relative rounded-lg overflow-hidden border transition ${
-                  img === mainImage
-                    ? "border-black"
-                    : "border-gray-200 hover:border-gray-400"
+                  img === mainImage ? "border-black shadow-sm" : "border-gray-200 hover:border-gray-400"
                 }`}
               >
-                <Image
-                  src={img}
-                  alt=""
-                  fill
-                  quality={100}
-                  className="object-contain bg-white"
-                />
+                <Image src={img} alt="" fill className="object-contain bg-white" />
               </div>
             ))}
           </div>
         </div>
 
-        {/* Info */}
-        <div className="md:sticky md:top-20 h-fit">
+        {/* Info Column */}
+        <div className="md:sticky md:top-24 h-fit">
           {product.discountPercentage && (
-            <p className="text-red-500 mb-2 font-semibold">
-              🔥 {product.discountPercentage}% OFF
+            <p className="text-red-600 mb-2 font-bold uppercase text-xs tracking-widest">
+              🔥 Special Offer: {product.discountPercentage}% OFF
             </p>
           )}
 
-          <h1 className="text-3xl font-semibold mb-2">{product.title}</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2 tracking-tight">{product.title}</h1>
 
           {/* Rating */}
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-yellow-500">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-yellow-500 flex text-lg">
               {"★".repeat(Math.round(avgRating))}
-              {"☆".repeat(5 - Math.round(avgRating))}
+              <span className="text-gray-300">{"★".repeat(5 - Math.round(avgRating))}</span>
             </span>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-gray-500 font-medium">
               {avgRating.toFixed(1)} ({reviews.length} reviews)
             </span>
           </div>
 
           {/* Price */}
-          <div className="flex gap-4 mb-4">
-            <span className="line-through text-gray-400">${product.price}</span>
-            <span className="text-2xl font-bold">
-              ${discountedPrice.toFixed(2)}
-            </span>
+          <div className="flex items-baseline gap-4 mb-6">
+            <span className="text-3xl font-bold text-black">${discountedPrice.toFixed(2)}</span>
+            {product.discountPercentage && (
+              <span className="line-through text-gray-400 text-lg">${product.price.toFixed(2)}</span>
+            )}
           </div>
 
-          <p className="text-gray-600 mb-4">{product.description}</p>
+          <p className="text-gray-600 leading-relaxed mb-8 text-lg">{product.description}</p>
 
           {/* Availability */}
-          <div className="flex items-center gap-2 mb-6">
-            <span
-              className={`w-3 h-3 rounded-full ${
-                inStock ? "bg-green-500" : "bg-red-500"
-              }`}
-            />
-            <p>{product.availabilityStatus}</p>
+          <div className="flex items-center gap-2 mb-8">
+            <span className={`w-3 h-3 rounded-full ${inStock ? "bg-green-500" : "bg-red-500"}`} />
+            <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              {inStock ? "In Stock & Ready to Ship" : "Out of Stock"}
+            </p>
           </div>
 
-          {/* Quantity */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="px-4 py-2 text-lg hover:bg-gray-100 transition disabled:opacity-40"
-                disabled={quantity === 1}
-              >
-                −
-              </button>
+          {/* Actions */}
+          <div className="flex flex-col gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center border border-gray-300 rounded-lg shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="px-5 py-3 hover:bg-gray-50 transition disabled:opacity-30"
+                  disabled={quantity === 1}
+                >−
+                </button>
+                <span className="w-12 text-center font-semibold">{quantity}</span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => q + 1)}
+                  className="px-5 py-3 hover:bg-gray-50 transition"
+                >+
+                </button>
+              </div>
 
-              <span className="px-5 py-2 text-sm border-x border-gray-300">
-                {quantity}
-              </span>
-
               <button
-                type="button"
-                onClick={() => setQuantity((q) => q + 1)}
-                className="px-4 py-2 text-lg hover:bg-gray-100 transition"
+                onClick={handleAddToCart}
+                disabled={!inStock}
+                className="flex-1 bg-black text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition disabled:bg-gray-300"
               >
-                +
+                ADD TO CART
               </button>
             </div>
 
             <button
-              onClick={handleAddToCart}
-              className="bg-black text-white px-6 py-2 rounded-md hover:bg-gray-900 transition"
+              onClick={toggleWishlist}
+              className="w-full py-4 border border-gray-300 rounded-lg font-semibold hover:bg-black hover:text-white transition flex justify-center items-center gap-2"
             >
-              Add to Cart
+              {isWishlisted ? "❤️ SAVED TO WISHLIST" : "♡ SAVE TO WISHLIST"}
             </button>
           </div>
 
-          {/* Wishlist */}
-          <button
-            onClick={toggleWishlist}
-            className="border border-gray-300 w-full py-3 rounded-md hover:bg-black hover:text-white transition mb-6"
-          >
-            {isWishlisted ? "❤️ Saved" : "♡ Save to Wishlist"}
-          </button>
-
-          {/* Shipping / Returns */}
+          {/* Shipping / Returns Boxes */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="border border-gray-200 p-4 bg-white rounded-lg flex flex-col items-center text-center shadow-sm">
-              <MdLocalShipping className="text-2xl mb-2" />
-              <p className="font-semibold">SHIPPING</p>
-              <p className="text-sm text-gray-600">
-                {product.shippingInformation}
-              </p>
+            <div className="border border-gray-100 p-5 bg-gray-50/50 rounded-xl flex flex-col items-center text-center">
+              <MdLocalShipping className="text-3xl mb-2 text-gray-700" />
+              <p className="font-bold text-xs uppercase mb-1">Shipping</p>
+              <p className="text-xs text-gray-500">{product.shippingInformation || "Free standard shipping"}</p>
             </div>
-
-            <div className="border border-gray-200 p-4 bg-white rounded-lg flex flex-col items-center text-center shadow-sm">
-              <GiReturnArrow className="text-2xl mb-2" />
-              <p className="font-semibold">RETURNS</p>
-              <p className="text-sm text-gray-600">{product.returnPolicy}</p>
+            <div className="border border-gray-100 p-5 bg-gray-50/50 rounded-xl flex flex-col items-center text-center">
+              <GiReturnArrow className="text-3xl mb-2 text-gray-700" />
+              <p className="font-bold text-xs uppercase mb-1">Returns</p>
+              <p className="text-xs text-gray-500">{product.returnPolicy || "30-day return policy"}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Reviews */}
-      <div className="mt-20">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold">Verified Reviews</h2>
-
+      {/* Review Section */}
+      <div className="mt-32 border-t border-gray-100 pt-20">
+        <div className="flex justify-between items-end mb-10">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Verified Reviews</h2>
+            <p className="text-gray-500">What our customers are saying about this product</p>
+          </div>
           <button
             onClick={() => isLoggedIn && setShowReviewModal(true)}
-            className="px-6 py-2 border border-black bg-black text-white transition hover:bg-white hover:text-black"
+            className="px-8 py-3 bg-black text-white rounded-full font-bold hover:scale-105 transition shadow-lg"
           >
             Write a Review
           </button>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {reviews.map((r) => (
-            <div
-              key={r.id}
-              className="border border-gray-200 rounded-xl p-5 bg-white transition hover:shadow-md"
-            >
-              <div className="flex justify-between items-center mb-2">
-                <p className="font-semibold">{r.name}</p>
-
-                <span className="text-yellow-500 text-sm">
-                  {"★".repeat(r.rating)}
-                  {"☆".repeat(5 - r.rating)}
-                </span>
+        <div className="grid md:grid-cols-2 gap-8">
+          {reviews.length > 0 ? (
+            reviews.map((r) => (
+              <div key={r.id} className="p-8 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition">
+                <div className="flex justify-between mb-4">
+                  <span className="font-bold text-lg">{r.name}</span>
+                  <div className="text-yellow-500">{"★".repeat(r.rating)}</div>
+                </div>
+                <p className="text-gray-600 italic">"{r.comment}"</p>
               </div>
-
-              <p className="text-sm text-gray-600 leading-relaxed">
-                "{r.comment}"
-              </p>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="text-gray-400">No reviews yet. Be the first to write one!</p>
+          )}
         </div>
       </div>
+
+    {/* Related Products */}
+<div className="mt-20">
+  <h2 className="text-2xl font-semibold mb-6">You May Also Like</h2>
+
+  {related.length === 0 ? (
+    <p className="text-gray-400">No related products found.</p>
+  ) : (
+    <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
+      {related.map((p) => {
+        const discounted = p.discountPercentage
+          ? (p.price * (100 - p.discountPercentage)) / 100
+          : p.price;
+
+        return (
+          <Link key={p._id} href={`/collections/${p._id}`}>
+            <motion.div
+              whileHover={{ y: -6 }}
+              className="border border-gray-200 rounded-xl overflow-hidden bg-white transition hover:shadow-md cursor-pointer"
+            >
+              <div className="relative h-48 w-full bg-white border-b border-gray-100">
+                <Image
+                  src={p.thumbnail}
+                  alt={p.title}
+                  fill
+                  className="object-contain p-3"
+                />
+              </div>
+
+              <div className="p-4">
+                <p className="text-sm font-medium line-clamp-2 mb-2">
+                  {p.title}
+                </p>
+
+                <div className="flex gap-2 text-sm items-center">
+                  {p.discountPercentage && (
+                    <span className="line-through text-gray-400">
+                      ${p.price}
+                    </span>
+                  )}
+                  <span className="font-semibold">
+                    ${discounted.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          </Link>
+        );
+      })}
+    </div>
+  )}
+</div>
+
+      {/* Review Modal */}
       {showReviewModal && (
-        <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-          onClick={() => setShowReviewModal(false)}
-        >
-          <div
-            className="bg-white p-6 rounded-xl w-full max-w-md border border-gray-200 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-4">Write a Review</h3>
-
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-6">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white p-8 rounded-3xl w-full max-w-md shadow-2xl">
+            <h3 className="text-2xl font-bold mb-6">Share Your Thoughts</h3>
             <input
-              placeholder="Your Name"
-              className="border border-gray-300 p-2 w-full mb-3 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="Full Name"
+              className="w-full p-4 bg-gray-50 rounded-xl border-none mb-4 focus:ring-2 focus:ring-black outline-none"
               value={newReview.name}
-              onChange={(e) =>
-                setNewReview({ ...newReview, name: e.target.value })
-              }
+              onChange={(e) => setNewReview({ ...newReview, name: e.target.value })}
             />
-
-            {/* Stars */}
-            <div className="flex gap-1 mb-4">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span
-                  key={star}
-                  onClick={() => setNewReview({ ...newReview, rating: star })}
-                  className={`cursor-pointer text-2xl ${
-                    star <= newReview.rating
-                      ? "text-yellow-500"
-                      : "text-gray-300"
-                  }`}
-                >
-                  ★
-                </span>
+            <div className="flex gap-2 mb-6 justify-center">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button key={s} onClick={() => setNewReview({ ...newReview, rating: s })} className={`text-3xl ${s <= newReview.rating ? "text-yellow-500" : "text-gray-200"}`}>★</button>
               ))}
             </div>
-
             <textarea
-              placeholder="Your Review"
-              className="border border-gray-300 p-2 w-full mb-4 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="What did you think of the product?"
+              rows={4}
+              className="w-full p-4 bg-gray-50 rounded-xl border-none mb-6 focus:ring-2 focus:ring-black outline-none"
               value={newReview.comment}
-              onChange={(e) =>
-                setNewReview({ ...newReview, comment: e.target.value })
-              }
+              onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
             />
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowReviewModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handleReviewSubmit}
-                className="px-4 py-2 border border-black bg-black text-white rounded-md transition hover:bg-white hover:text-black"
-              >
-                Submit
-              </button>
+            <div className="flex gap-3">
+              <button onClick={() => setShowReviewModal(false)} className="flex-1 py-3 font-bold text-gray-500">Cancel</button>
+              <button onClick={handleReviewSubmit} className="flex-1 py-3 bg-black text-white rounded-xl font-bold">Submit</button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
-      <div className="mt-20">
-        <h2 className="text-2xl font-semibold mb-6">You May Also Like</h2>
+    </section>
+  );
+}
 
-        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
-          {related.map((p) => {
-            const discounted = p.discountPercentage
-              ? (p.price * (100 - p.discountPercentage)) / 100
-              : p.price;
-
-            return (
-              <Link key={p.id} href={`/collections/${p.id}`}>
-                <motion.div
-                  whileHover={{ y: -6 }}
-                  className="border border-gray-200 rounded-xl overflow-hidden bg-white transition hover:shadow-md"
-                >
-                  <div className="relative h-48 w-full bg-white border-b border-gray-100">
-                    <Image
-                      src={p.thumbnail}
-                      alt={p.title}
-                      fill
-                      quality={100}
-                      className="object-contain p-3"
-                    />
-                  </div>
-
-                  <div className="p-4">
-                    <p className="text-sm font-medium line-clamp-2 mb-2">
-                      {p.title}
-                    </p>
-
-                    <div className="flex gap-2 text-sm items-center">
-                      <span className="line-through text-gray-400">
-                        ${p.price}
-                      </span>
-                      <span className="font-semibold">
-                        ${discounted.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              </Link>
-            );
-          })}
+// Ported Skeleton Component
+function ProductSkeleton() {
+  return (
+    <section className="max-w-7xl mx-auto px-6 md:px-12 py-20 animate-pulse">
+      <div className="h-4 w-1/3 bg-gray-200 rounded mb-10" />
+      <div className="grid md:grid-cols-2 gap-12">
+        <div className="h-[500px] bg-gray-200 rounded-3xl" />
+        <div className="space-y-6">
+          <div className="h-4 w-24 bg-gray-200 rounded" />
+          <div className="h-10 w-3/4 bg-gray-200 rounded" />
+          <div className="h-20 w-full bg-gray-200 rounded" />
+          <div className="h-12 w-1/2 bg-gray-200 rounded" />
+          <div className="grid grid-cols-2 gap-4">
+             <div className="h-24 bg-gray-200 rounded-xl" />
+             <div className="h-24 bg-gray-200 rounded-xl" />
+          </div>
         </div>
       </div>
     </section>

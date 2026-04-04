@@ -6,6 +6,12 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import {
+  loginUser,
+  registerUser,
+  loginWithGoogle,
+} from "@/lib/firebase/auth";
+
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -23,12 +29,26 @@ export default function AuthPage() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("from") || "/";
 
-  // ✅ TEMP Google handler (UI only)
-  const handleGoogleLogin = () => {
-    console.log("Google login clicked");
-    router.push("/"); // fake redirect
+  // ✅ Save user to MongoDB
+  const saveUserToDB = async (user, name = "") => {
+    try {
+      await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          name: name || user.displayName || "",
+        }),
+      });
+    } catch (err) {
+      console.error("DB save error:", err);
+    }
   };
 
+  // ✅ Validation
   const validate = () => {
     let newErrors = {};
 
@@ -49,7 +69,8 @@ export default function AuthPage() {
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  // ✅ Submit handler
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const validationErrors = validate();
@@ -57,18 +78,55 @@ export default function AuthPage() {
 
     if (Object.keys(validationErrors).length > 0) return;
 
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+      let userCredential;
+
+      if (isLogin) {
+        // LOGIN
+        userCredential = await loginUser(form.email, form.password);
+      } else {
+        // SIGNUP
+        userCredential = await registerUser(
+          form.email,
+          form.password
+        );
+
+        await saveUserToDB(userCredential.user, form.name);
+      }
+
       router.push(redirectPath);
-    }, 1000);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Google login
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+
+      const user = await loginWithGoogle();
+
+      await saveUserToDB(user);
+
+      router.push(redirectPath);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center text-white overflow-hidden">
       
-      {/* 🔙 Back to Home */}
+      {/* Back */}
       <button
         onClick={() => router.push("/")}
         className="absolute top-6 left-6 z-20 px-4 py-2 text-xs tracking-widest border border-white/40 backdrop-blur-md hover:bg-white hover:text-black transition"
@@ -76,7 +134,7 @@ export default function AuthPage() {
         ← HOME
       </button>
 
-      {/* 🖼️ Background */}
+      {/* Background */}
       <Image
         src="/a.jpg"
         alt="Auth Background"
@@ -86,7 +144,6 @@ export default function AuthPage() {
         className="object-cover"
       />
 
-      {/* Overlay */}
       <div className="absolute inset-0 bg-black/50" />
 
       {/* Content */}
@@ -134,7 +191,9 @@ export default function AuthPage() {
                     type="text"
                     placeholder="FULL NAME"
                     className="input"
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, name: e.target.value })
+                    }
                   />
                   {errors.name && <p className="error">{errors.name}</p>}
                 </div>
@@ -145,7 +204,9 @@ export default function AuthPage() {
                   type="email"
                   placeholder="EMAIL"
                   className="input"
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, email: e.target.value })
+                  }
                 />
                 {errors.email && <p className="error">{errors.email}</p>}
               </div>
@@ -177,10 +238,9 @@ export default function AuthPage() {
               )}
 
               {/* Submit */}
-              <motion.button
+              <button
                 type="submit"
                 disabled={loading}
-                whileTap={{ scale: 0.97 }}
                 className="w-full py-3 border border-white tracking-widest hover:bg-white hover:text-black transition"
               >
                 {loading ? (
@@ -190,7 +250,7 @@ export default function AuthPage() {
                 ) : (
                   "CREATE ACCOUNT"
                 )}
-              </motion.button>
+              </button>
 
               {/* Divider */}
               <div className="flex items-center gap-3 my-4">
@@ -216,17 +276,6 @@ export default function AuthPage() {
               </button>
             </motion.form>
           </AnimatePresence>
-
-          {/* Footer */}
-          <p className="text-xs mt-6 text-white/60 text-center">
-            {isLogin ? "DON’T HAVE AN ACCOUNT?" : "ALREADY HAVE AN ACCOUNT?"}{" "}
-            <span
-              onClick={() => setIsLogin(!isLogin)}
-              className="underline cursor-pointer hover:text-white"
-            >
-              {isLogin ? "SIGN UP" : "LOGIN"}
-            </span>
-          </p>
         </motion.div>
       </div>
 

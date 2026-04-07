@@ -20,19 +20,19 @@ export default function Collections() {
   const [hoverImages, setHoverImages] = useState({});
   const [mobileIndex, setMobileIndex] = useState({});
 
-  // ✅ FIXED FETCH (MongoDB + categories + _id safe)
+  // FETCH (MongoDB + categories + _id safe)
   useEffect(() => {
     fetch("/api/products")
       .then((res) => res.json())
       .then((data) => {
-        const formatted = data.map((p) => ({
-          ...p,
-          _id: p._id.toString(),
-        }));
+      const formatted = data.map((p) => ({
+  ...p,
+  _id: p._id?.toString?.() || p._id,
+}));
 
         setProducts(formatted);
 
-        // ✅ dynamic categories
+        //  dynamic categories
         const uniqueCategories = [
           "All",
           ...new Set(formatted.map((p) => p.category)),
@@ -59,7 +59,7 @@ export default function Collections() {
 
   const toggleFavorite = (id) => {
     setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id],
     );
   };
 
@@ -92,7 +92,7 @@ export default function Collections() {
               opacity: 0.5,
             },
           ],
-          { duration: 600, easing: "ease-in-out" }
+          { duration: 600, easing: "ease-in-out" },
         ).onfinish = () => clone.remove();
       }
     }
@@ -100,7 +100,7 @@ export default function Collections() {
 
   const loadMore = () => setVisibleCount((prev) => prev + 18);
 
-  // ✅ FIXED swipe (_id instead of id + safety)
+  //  FIXED swipe (_id instead of id + safety)
   const handleSwipe = (id, direction) => {
     setMobileIndex((prev) => {
       const current = prev[id] || 0;
@@ -203,101 +203,108 @@ export default function Collections() {
 
         {/* Products */}
         <div className="md:col-span-3 grid md:grid-cols-3 grid-cols-2 gap-4">
-          {loading
-            ? Array.from({ length: visibleCount }).map((_, i) => (
-                <div key={i}>{renderSkeleton()}</div>
-              ))
-            : filteredProducts.length === 0
-            ? <p className="text-sm text-gray-400">No products found.</p>
-            : filteredProducts.slice(0, visibleCount).map((product) => (
-                <motion.div
-                  key={product._id}
-                  whileHover={{ y: -6 }}
-                  transition={{ type: "spring", stiffness: 200 }}
-                  className="group border border-gray-200 p-3 bg-white cursor-pointer relative"
-                  onMouseEnter={() =>
-                    product.images?.length > 1 &&
-                    setHoverImages((prev) => ({
-                      ...prev,
-                      [product._id]: product.images[1],
-                    }))
-                  }
-                  onMouseLeave={() =>
-                    product.images?.length > 1 &&
-                    setHoverImages((prev) => ({
-                      ...prev,
-                      [product._id]:
-                        product.images?.[0] || product.thumbnail,
-                    }))
-                  }
+          {loading ? (
+            Array.from({ length: visibleCount }).map((_, i) => (
+              <div key={i}>{renderSkeleton()}</div>
+            ))
+          ) : filteredProducts.length === 0 ? (
+            <p className="text-sm text-gray-400">No products found.</p>
+          ) : (
+            filteredProducts.slice(0, visibleCount).map((product) => (
+              <motion.div
+                key={product._id}
+                whileHover={{ y: -6 }}
+                transition={{ type: "spring", stiffness: 200 }}
+                className="group border border-gray-200 p-3 bg-white cursor-pointer relative"
+                onMouseEnter={() =>
+                  product.images?.length > 1 &&
+                  setHoverImages((prev) => ({
+                    ...prev,
+                    [product._id]: product.images[1],
+                  }))
+                }
+                onMouseLeave={() =>
+                  product.images?.length > 1 &&
+                  setHoverImages((prev) => ({
+                    ...prev,
+                    [product._id]: product.images?.[0] || product.thumbnail,
+                  }))
+                }
+              >
+                {/* Favorite */}
+                <div
+                  onClick={() => toggleFavorite(product._id)}
+                  className={`absolute top-2 left-2 z-10 p-2 rounded-full ${
+                    favorites.includes(product._id)
+                      ? "text-red-500"
+                      : "text-gray-400 hover:text-black"
+                  }`}
                 >
-                  {/* Favorite */}
-                  <div
-                    onClick={() => toggleFavorite(product._id)}
-                    className={`absolute top-2 left-2 z-10 p-2 rounded-full ${
-                      favorites.includes(product._id)
-                        ? "text-red-500"
-                        : "text-gray-400 hover:text-black"
-                    }`}
-                  >
-                    <AiFillHeart size={18} />
-                  </div>
+                  <AiFillHeart size={18} />
+                </div>
 
-                  {/* Image */}
-                  <Link href={`/collections/${product._id}`}>
-                    <div
-                      id={`img-${product._id}`}
-                      className="relative h-[200px] md:h-[260px] overflow-hidden mb-4"
-                    >
+                {/* Image */}
+                <Link href={`/collections/${product._id.toString()}`}>
+                
+                  <div
+                    id={`img-${product._id}`}
+                    className="relative h-[200px] md:h-[260px] overflow-hidden mb-4"
+                  >
+                    <Image
+                      src={
+                        hoverImages[product._id] ||
+                        product.images?.[0] ||
+                        product.thumbnail
+                      }
+                      alt={product.title}
+                      fill
+                      unoptimized
+                      onError={(e) => {
+                        e.currentTarget.src = "/image-not-found.png";
+                      }}
+                      className="object-cover group-hover:scale-105 transition duration-500 hidden md:block"
+                    />
+
+                    <div className="md:hidden relative w-full h-full">
                       <Image
                         src={
-                          hoverImages[product._id] ||
-                          product.images?.[0] ||
+                          product.images?.[mobileIndex[product._id] || 0] ||
                           product.thumbnail
                         }
                         alt={product.title}
                         fill
-                        className="object-cover group-hover:scale-105 transition duration-500 hidden md:block"
+                        unoptimized
+                        className="object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "/image-not-found.png";
+                        }}
                       />
-
-                      <div className="md:hidden relative w-full h-full">
-                        <Image
-                          src={
-                            product.images?.[
-                              mobileIndex[product._id] || 0
-                            ] || product.thumbnail
-                          }
-                          alt={product.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
                     </div>
+                  </div>
 
-                    <h3 className="text-sm tracking-widest mb-1">
-                      {product.title?.toUpperCase() || "NO TITLE"}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      ${product.price}
-                    </p>
-                  </Link>
+                  <h3 className="text-sm tracking-widest mb-1">
+                    {product.title?.toUpperCase() || "NO TITLE"}
+                  </h3>
+                  <p className="text-sm text-gray-500">${product.price}</p>
+                </Link>
 
-                  {/* Cart */}
-                  <motion.div
-                    onClick={() => addToCart(product)}
-                    whileTap={{ scale: 1.2 }}
-                    className={`absolute bottom-2 right-2 ${
-                      cart.includes(product._id)
-                        ? "text-green-600"
-                        : "text-gray-500 hover:text-black"
-                    }`}
-                  >
-                    <AiOutlineShoppingCart size={20} />
-                  </motion.div>
-
-                  <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-black group-hover:w-full transition-all"></div>
+                {/* Cart */}
+                <motion.div
+                  onClick={() => addToCart(product)}
+                  whileTap={{ scale: 1.2 }}
+                  className={`absolute bottom-2 right-2 ${
+                    cart.includes(product._id)
+                      ? "text-green-600"
+                      : "text-gray-500 hover:text-black"
+                  }`}
+                >
+                  <AiOutlineShoppingCart size={20} />
                 </motion.div>
-              ))}
+
+                <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-black group-hover:w-full transition-all"></div>
+              </motion.div>
+            ))
+          )}
         </div>
       </div>
 

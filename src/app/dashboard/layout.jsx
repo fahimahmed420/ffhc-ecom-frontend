@@ -25,7 +25,7 @@ export default function DashboardLayout({ children }) {
   const [role, setRole] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // ✅ Listen to auth state & fetch role
+  //  Listen to auth state & fetch role
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -43,20 +43,20 @@ export default function DashboardLayout({ children }) {
         setRole(null);
       }
 
-      setAuthLoading(false); // ✅ done loading
+      setAuthLoading(false); //  done loading
     });
 
     return () => unsubscribe();
   }, []);
 
-  // ✅ Logout
+  //  Logout
   const handleLogout = async () => {
     await signOut(auth);
     setOpen(false);
     router.push("/auth");
   };
 
-  // ✅ Navigation items with role check
+  //  Navigation items with role check
   const navItems = [
     { name: "HOME", path: "/", icon: <Home size={14} /> },
     ...(role === "admin"
@@ -87,7 +87,7 @@ export default function DashboardLayout({ children }) {
   }
   return (
     <div className="min-h-screen flex flex-col">
-      {/* ✅ Navbar */}
+      {/*  Navbar */}
       <nav className="border-b border-gray-300 px-6 md:px-12 py-4 flex justify-between items-center relative">
         {/* Logo */}
         <Link href="/dashboard">

@@ -141,7 +141,7 @@ export default function ProfilePage() {
       setIsDirty(false);
       localStorage.removeItem("profile-draft");
 
-      toast.success("Profile updated ✅");
+      toast.success("Profile updated ");
     } catch (err) {
       console.error(err);
       toast.error("Something went wrong ❌");

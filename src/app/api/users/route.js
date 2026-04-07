@@ -27,7 +27,7 @@ export async function POST(req) {
       uid: body.uid,
     });
 
-    // ✅ CREATE NEW USER
+    //  CREATE NEW USER
     if (!existingUser) {
       const newUser = {
         uid: body.uid,
@@ -35,7 +35,7 @@ export async function POST(req) {
         name: body.name || "",
         phone: "",
         address: "",
-        photo: body.photo || "", // ✅ FIXED
+        photo: body.photo || "", //  FIXED
         role: "user",
         createdAt: new Date(),
       };
@@ -44,7 +44,7 @@ export async function POST(req) {
       return Response.json(newUser);
     }
 
-    // ✅ UPDATE EXISTING USER (important for Google photo)
+    //  UPDATE EXISTING USER (important for Google photo)
     await usersCollection.updateOne(
       { uid: body.uid },
       {

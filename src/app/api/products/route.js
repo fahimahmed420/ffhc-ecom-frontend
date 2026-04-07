@@ -1,21 +1,41 @@
 import clientPromise from "@/lib/mongodb";
 
 export async function GET() {
-  const client = await clientPromise;
-  const db = client.db("ecommerce");
+  try {
+    const client = await clientPromise;
+    const db = client.db("ecommerce");
 
-  const products = await db.collection("products").find().toArray();
+    const products = await db.collection("products").find().toArray();
 
-  return Response.json(products);
+    // ✅ Convert ObjectId to string HERE
+    const formatted = products.map((p) => ({
+      ...p,
+      _id: p._id.toString(),
+    }));
+
+    return Response.json(formatted);
+  } catch (err) {
+    return Response.json(
+      { error: "Failed to fetch products" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req) {
-  const product = await req.json();
+  try {
+    const product = await req.json();
 
-  const client = await clientPromise;
-  const db = client.db("ecommerce");
+    const client = await clientPromise;
+    const db = client.db("ecommerce");
 
-  const result = await db.collection("products").insertOne(product);
+    const result = await db.collection("products").insertOne(product);
 
-  return Response.json(result);
+    return Response.json({
+      success: true,
+      insertedId: result.insertedId,
+    });
+  } catch (err) {
+    return Response.json({ error: "Failed to insert product" }, { status: 500 });
+  }
 }

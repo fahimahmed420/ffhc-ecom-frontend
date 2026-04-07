@@ -10,30 +10,15 @@ import { IoMdStar, IoMdStarHalf, IoMdStarOutline } from "react-icons/io";
 function BestSellingSkeleton() {
   return (
     <section className="px-6 md:px-12 py-20 max-w-7xl mx-auto animate-pulse">
-      {/* Title */}
       <div className="h-6 w-48 bg-gray-200 rounded mx-auto mb-12" />
 
-      {/* Grid */}
       <div className="grid md:grid-cols-4 grid-cols-2 gap-6">
         {[1, 2, 3, 4].map((item) => (
-          <div
-            key={item}
-            className="border border-gray-200 bg-white relative overflow-hidden"
-          >
-            {/* Image */}
+          <div key={item} className="border bg-white">
             <div className="w-full aspect-square bg-gray-200" />
-
-            {/* Rating badge */}
-            <div className="absolute top-2 right-2 flex items-center gap-2 border border-gray-300 bg-gray-100 px-3 py-1 rounded">
-              <div className="h-3 w-10 bg-gray-300 rounded" />
-              <div className="h-3 w-6 bg-gray-300 rounded" />
-            </div>
-
-            {/* Content */}
             <div className="p-6 space-y-3">
               <div className="h-4 w-3/4 bg-gray-200 rounded" />
               <div className="h-4 w-1/3 bg-gray-200 rounded" />
-
               <div className="h-8 w-full bg-gray-200 rounded mt-6" />
             </div>
           </div>
@@ -43,86 +28,99 @@ function BestSellingSkeleton() {
   );
 }
 
-/* ================= Main Component ================= */
+/* ================= Main ================= */
 export default function BestSelling() {
   const router = useRouter();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Mock reviews
-  const generateReviews = () => {
-    const reviewCount = Math.floor(Math.random() * 6) + 5;
-    return Array.from(
-      { length: reviewCount },
-      () => Math.floor(Math.random() * 5) + 1,
+  /* ⭐ Calculate avg rating from MongoDB reviews */
+  const calculateAvg = (reviews = []) => {
+    if (!reviews.length) return 0;
+    return (
+      reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length
     );
   };
 
-  useEffect(() => {
-    fetch("https://dummyjson.com/products?limit=100")
+  /* ⭐ Star renderer */
+  const renderStars = (rating = 0) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      if (i <= Math.floor(rating)) stars.push(<IoMdStar key={i} />);
+      else if (i - rating <= 0.5) stars.push(<IoMdStarHalf key={i} />);
+      else stars.push(<IoMdStarOutline key={i} />);
+    }
+    return stars;
+  };
+
+  /* 🔄 Load products */
+  const loadProducts = () => {
+    fetch("/api/products")
       .then((res) => res.json())
       .then((data) => {
-        const sorted = data.products
-          .sort((a, b) => b.rating - a.rating)
-          .slice(0, 4)
-          .map((p) => {
-            const reviews = generateReviews();
-            const avg = reviews.reduce((acc, r) => acc + r, 0) / reviews.length;
+        const list = Array.isArray(data) ? data : data.products;
 
-            return { ...p, reviews, avgRating: avg };
-          });
+        const enriched = list.map((p) => ({
+          ...p,
+          avgRating: calculateAvg(p.reviews || []),
+        }));
+
+        const sorted = enriched
+          .sort((a, b) => b.avgRating - a.avgRating)
+          .slice(0, 4);
 
         setProducts(sorted);
         setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    loadProducts();
   }, []);
 
   const addToCart = (product) => {
-    console.log("Added to cart:", product);
-  };
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
 
-  const renderStars = (rating) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      if (i <= Math.floor(rating)) {
-        stars.push(<IoMdStar key={i} />);
-      } else if (i - rating <= 0.5) {
-        stars.push(<IoMdStarHalf key={i} />);
-      } else {
-        stars.push(<IoMdStarOutline key={i} />);
-      }
-    }
-    return stars;
+    const existing = cart.find((item) => item._id === product._id);
+
+    if (existing) existing.quantity += 1;
+    else cart.push({ ...product, quantity: 1 });
+
+    localStorage.setItem("cart", JSON.stringify(cart));
   };
 
   if (loading) return <BestSellingSkeleton />;
 
   return (
     <section className="px-6 md:px-12 py-20 max-w-7xl mx-auto">
-      <h2 className="text-2xl mb-12 text-center font-semibold">Best Selling</h2>
+      <h2 className="text-2xl mb-12 text-center font-semibold">
+        Best Selling
+      </h2>
 
       <div className="grid md:grid-cols-4 grid-cols-2 gap-6">
         {products.map((p) => (
           <motion.div
-            key={p.id}
+            key={p._id}
             whileHover={{ y: -6 }}
-            transition={{ type: "spring", stiffness: 200 }}
-            className="group border border-gray-200 bg-white cursor-pointer relative overflow-hidden"
-            onClick={() => router.push(`/collections/${p.id}`)}
+            className="group border bg-white cursor-pointer relative overflow-hidden"
+            onClick={() => router.push(`/collections/${p._id}`)}
           >
             {/* Image */}
             <div className="relative w-full aspect-square overflow-hidden">
               <Image
-                src={p.thumbnail}
+                src={p.thumbnail || "/fallback.png"}
                 alt={p.title}
                 fill
-                sizes="(max-width: 768px) 50vw, 25vw"
-                className="object-cover transition duration-500 group-hover:scale-105"
-                priority
+                className="object-cover group-hover:scale-105 transition"
+                onError={(e) => (e.currentTarget.src = "/fallback.png")}
               />
 
-              {/* Rating Badge */}
-              <div className="absolute top-2 right-2 text-[11px] tracking-widest border bg-white px-3 py-1 flex items-center gap-1">
+              {/* ⭐ Rating */}
+              <div className="absolute top-2 right-2 text-[11px] border bg-white px-3 py-1 flex items-center gap-1">
                 {renderStars(p.avgRating)}
                 <span className="text-[10px] ml-1">
                   {p.avgRating.toFixed(1)}
@@ -138,13 +136,12 @@ export default function BestSelling() {
 
               <p className="text-sm text-gray-500 mb-2">${p.price}</p>
 
-              {/* Add to cart */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   addToCart(p);
                 }}
-                className="absolute bottom-0 left-0 w-full bg-black text-white py-2 text-[11px] tracking-widest translate-y-full group-hover:translate-y-0 transition duration-300"
+                className="absolute bottom-0 left-0 w-full bg-black text-white py-2 text-[11px] translate-y-full group-hover:translate-y-0 transition"
               >
                 ADD TO CART
               </button>

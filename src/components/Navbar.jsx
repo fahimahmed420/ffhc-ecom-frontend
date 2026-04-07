@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 
-// ✅ import auth
+//  import auth
 import { logoutUser } from "@/lib/firebase/auth";
 import { useAuth } from "@/context/AuthContext";
 

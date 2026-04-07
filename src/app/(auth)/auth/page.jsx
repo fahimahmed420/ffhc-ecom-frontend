@@ -29,7 +29,7 @@ export default function AuthPage() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("from") || "/";
 
-  // ✅ Save user to MongoDB
+  //  Save user to MongoDB
  const saveUserToDB = async (user, name = "") => {
   try {
     await fetch("/api/users", {
@@ -49,7 +49,7 @@ export default function AuthPage() {
   }
 };
 
-  // ✅ Validation
+  //  Validation
   const validate = () => {
     let newErrors = {};
 
@@ -70,7 +70,7 @@ export default function AuthPage() {
     return newErrors;
   };
 
-  // ✅ Submit handler
+  //  Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -106,7 +106,7 @@ export default function AuthPage() {
     }
   };
 
-  // ✅ Google login
+  //  Google login
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);

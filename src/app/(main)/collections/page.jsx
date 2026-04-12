@@ -1,323 +1,278 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  AiFillHeart,
+  AiOutlineHeart,
+  AiOutlineShoppingCart,
+} from "react-icons/ai";
 import { motion } from "framer-motion";
-import { AiFillHeart, AiOutlineShoppingCart } from "react-icons/ai";
+import { toast, Toaster } from "react-hot-toast";
 
 export default function Collections() {
   const [products, setProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [loading, setLoading] = useState(true);
-  const [favorites, setFavorites] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
   const [cart, setCart] = useState([]);
   const [sortOrder, setSortOrder] = useState("default");
   const [categories, setCategories] = useState([]);
-  const [visibleCount, setVisibleCount] = useState(18);
-  const cartRef = useRef(null);
 
-  const [hoverImages, setHoverImages] = useState({});
-  const [mobileIndex, setMobileIndex] = useState({});
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  // FETCH (MongoDB + categories + _id safe)
+  const loaderRef = useRef(null);
+  const fetchingRef = useRef(false);
+
+  // ✅ LOAD STORAGE
   useEffect(() => {
-    fetch("/api/products")
-      .then((res) => res.json())
-      .then((data) => {
-      const formatted = data.map((p) => ({
-  ...p,
-  _id: p._id?.toString?.() || p._id,
-}));
+    const w = localStorage.getItem("wishlist");
+    const c = localStorage.getItem("cart");
 
-        setProducts(formatted);
-
-        //  dynamic categories
-        const uniqueCategories = [
-          "All",
-          ...new Set(formatted.map((p) => p.category)),
-        ];
-        setCategories(uniqueCategories);
-
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
+    if (w) setWishlist(JSON.parse(w));
+    if (c) setCart(JSON.parse(c));
   }, []);
 
-  let filteredProducts =
-    selectedCategory === "All"
-      ? products
-      : products.filter((p) => p.category === selectedCategory);
-
-  if (sortOrder === "asc")
-    filteredProducts = [...filteredProducts].sort((a, b) => a.price - b.price);
-  else if (sortOrder === "desc")
-    filteredProducts = [...filteredProducts].sort((a, b) => b.price - a.price);
-
-  const toggleFavorite = (id) => {
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id],
-    );
+  // ✅ SAVE HELPERS
+  const updateWishlist = (list) => {
+    setWishlist(list);
+    localStorage.setItem("wishlist", JSON.stringify(list));
   };
 
-  const addToCart = (product) => {
-    if (!cart.includes(product._id)) {
-      setCart((prev) => [...prev, product._id]);
-      const img = document.getElementById(`img-${product._id}`);
-      if (img && cartRef.current) {
-        const clone = img.cloneNode(true);
-        const rect = img.getBoundingClientRect();
-        clone.style.position = "fixed";
-        clone.style.left = rect.left + "px";
-        clone.style.top = rect.top + "px";
-        clone.style.width = rect.width + "px";
-        clone.style.height = rect.height + "px";
-        clone.style.zIndex = 9999;
-        clone.style.borderRadius = "8px";
-        clone.style.pointerEvents = "none";
-        document.body.appendChild(clone);
+  const updateCart = (list) => {
+    setCart(list);
+    localStorage.setItem("cart", JSON.stringify(list));
+  };
 
-        const cartRect = cartRef.current.getBoundingClientRect();
-
-        clone.animate(
-          [
-            { transform: "translate(0,0) scale(1)", opacity: 1 },
-            {
-              transform: `translate(${cartRect.left - rect.left}px, ${
-                cartRect.top - rect.top
-              }px) scale(0.2)`,
-              opacity: 0.5,
-            },
-          ],
-          { duration: 600, easing: "ease-in-out" },
-        ).onfinish = () => clone.remove();
-      }
+  // ❤️ WISHLIST TOGGLE
+  const toggleWishlist = (id) => {
+    if (wishlist.includes(id)) {
+      updateWishlist(wishlist.filter((i) => i !== id));
+      toast("Removed from wishlist ❌");
+    } else {
+      updateWishlist([...wishlist, id]);
+      toast.success("Added to wishlist ❤️");
     }
   };
 
-  const loadMore = () => setVisibleCount((prev) => prev + 18);
+  // 🛒 ADD TO CART
+  const addToCart = (product) => {
+    if (cart.includes(product._id)) {
+      toast("Already in cart ⚠️");
+      return;
+    }
 
-  //  FIXED swipe (_id instead of id + safety)
-  const handleSwipe = (id, direction) => {
-    setMobileIndex((prev) => {
-      const current = prev[id] || 0;
-      const product = filteredProducts.find((p) => p._id === id);
-      if (!product || !product.images) return prev;
-
-      const maxIndex = product.images.length - 1;
-
-      let nextIndex = current + direction;
-      if (nextIndex < 0) nextIndex = maxIndex;
-      if (nextIndex > maxIndex) nextIndex = 0;
-
-      return { ...prev, [id]: nextIndex };
-    });
+    const updated = [...cart, product._id];
+    updateCart(updated);
+    toast.success("Added to cart 🛒");
   };
 
-  const renderSkeleton = () => (
-    <div className="animate-pulse flex flex-col md:flex-row md:items-start md:gap-4 border border-gray-200 p-3 bg-white rounded-lg">
-      <div className="bg-gray-200 w-full md:w-32 h-32 rounded-lg mb-3 md:mb-0"></div>
-      <div className="flex-1 space-y-3">
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        <div className="flex gap-2">
-          <div className="h-8 w-20 bg-gray-200 rounded"></div>
-          <div className="h-8 w-20 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    </div>
+  // 🚀 FETCH PRODUCTS
+  const fetchProducts = useCallback(
+    async (reset = false) => {
+      if (fetchingRef.current) return;
+      if (!hasMore && !reset) return;
+
+      fetchingRef.current = true;
+      setLoading(true);
+
+      try {
+        const res = await fetch(
+          `/api/products?page=${
+            reset ? 0 : page
+          }&limit=12&category=${selectedCategory}&sort=${sortOrder}`
+        );
+
+        const data = await res.json();
+        const newProducts = data.products || [];
+
+        setProducts((prev) => {
+          if (reset) return newProducts;
+
+          const ids = new Set(prev.map((p) => p._id));
+          const filtered = newProducts.filter((p) => !ids.has(p._id));
+
+          return [...prev, ...filtered];
+        });
+
+        setHasMore(data.hasMore);
+
+        if (categories.length === 0 && newProducts.length > 0) {
+          setCategories([
+            "All",
+            ...new Set(newProducts.map((p) => p.category)),
+          ]);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+
+      setLoading(false);
+      fetchingRef.current = false;
+    },
+    [page, selectedCategory, sortOrder, hasMore, categories.length]
   );
 
+  useEffect(() => {
+    fetchProducts(true);
+  }, []);
+
+  useEffect(() => {
+    setPage(0);
+    setHasMore(true);
+    fetchProducts(true);
+  }, [selectedCategory, sortOrder]);
+
+  useEffect(() => {
+    if (page === 0) return;
+    fetchProducts();
+  }, [page]);
+
+  useEffect(() => {
+    if (!loaderRef.current) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !fetchingRef.current) {
+        setPage((prev) => prev + 1);
+      }
+    });
+
+    observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [hasMore]);
+
   return (
-    <section className="px-4 md:px-12 py-12 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6 text-center md:text-left">
-        <p className="text-xs tracking-widest text-gray-400 mb-2">
-          OUR COLLECTIONS
-        </p>
-        <h1 className="text-3xl md:text-5xl font-semibold mb-3">
-          SHOP THE LATEST PRODUCTS
+    <section className="px-4 md:px-12 py-10 max-w-7xl mx-auto">
+      <Toaster position="top-right" />
+
+      {/* HEADER */}
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
+          Latest Products
         </h1>
-        <p className="text-sm text-gray-500 max-w-xl leading-relaxed mb-4">
-          Discover a curated selection of accessories, kids’ items, jewelry, car
-          essentials, and more.
-        </p>
-        <div className="flex justify-end">
-          <div className="text-sm">
-            <label className="mr-2 font-medium">Sort by price:</label>
-            <select
-              className="border border-gray-300 rounded px-2 py-1"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-            >
-              <option value="default">Default</option>
-              <option value="asc">Low → High</option>
-              <option value="desc">High → Low</option>
-            </select>
-          </div>
+
+        {/* ✨ MODERN SORT */}
+        <div className="relative">
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="appearance-none px-4 py-2 pr-10 rounded-xl bg-white/70 backdrop-blur border shadow-sm hover:shadow-md transition focus:outline-none"
+          >
+            <option value="default">Sort</option>
+            <option value="asc">Price: Low → High</option>
+            <option value="desc">Price: High → Low</option>
+          </select>
+
+          <span className="absolute right-3 top-2.5 text-gray-500">⌄</span>
         </div>
       </div>
 
-      {/* Categories mobile */}
-      <div className="md:hidden mb-6 overflow-x-auto">
-        <div className="flex flex-wrap gap-2 max-h-[5rem]">
-          {categories.map((cat, i) => (
-            <button
-              key={i}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
-                selectedCategory === cat
-                  ? "bg-black text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              {cat.toUpperCase()}
-            </button>
-          ))}
-        </div>
+      {/* CATEGORIES */}
+      <div className="mb-8 flex flex-wrap gap-2">
+        {categories.map((cat, i) => (
+          <button
+            key={i}
+            onClick={() => setSelectedCategory(cat)}
+            className={`px-4 py-1.5 rounded-full text-sm transition ${
+              selectedCategory === cat
+                ? "bg-black text-white"
+                : "bg-gray-100 hover:bg-gray-200"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
-      <div className="grid md:grid-cols-4 gap-6">
-        {/* Sidebar */}
-        <aside className="hidden md:block">
-          <p className="text-xs tracking-widest mb-6">CATEGORIES</p>
-          <div className="space-y-3 text-sm text-gray-500">
-            {categories.map((cat, i) => (
-              <p
-                key={i}
-                onClick={() => setSelectedCategory(cat)}
-                className={`cursor-pointer ${
-                  selectedCategory === cat
-                    ? "text-black font-semibold"
-                    : "hover:text-black"
-                }`}
-              >
-                {cat.toUpperCase()}
-              </p>
-            ))}
-          </div>
-        </aside>
+      {/* PRODUCTS GRID */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+        {products.map((product) => (
+          <motion.div
+            key={product._id}
+            whileHover={{ scale: 1.03 }}
+            className="bg-white rounded-2xl shadow-sm hover:shadow-md transition overflow-hidden"
+          >
+            {/* CLICKABLE CARD */}
+            <Link href={`/collections/${product._id}`}>
+              <div className="cursor-pointer">
+                <div className="relative h-[220px]">
+                  <Image
+                    src={product.images?.[0] || product.thumbnail}
+                    alt={product.title}
+                    fill
+                    className="object-cover"
+                  />
 
-        {/* Products */}
-        <div className="md:col-span-3 grid md:grid-cols-3 grid-cols-2 gap-4">
-          {loading ? (
-            Array.from({ length: visibleCount }).map((_, i) => (
-              <div key={i}>{renderSkeleton()}</div>
-            ))
-          ) : filteredProducts.length === 0 ? (
-            <p className="text-sm text-gray-400">No products found.</p>
-          ) : (
-            filteredProducts.slice(0, visibleCount).map((product) => (
-              <motion.div
-                key={product._id}
-                whileHover={{ y: -6 }}
-                transition={{ type: "spring", stiffness: 200 }}
-                className="group border border-gray-200 p-3 bg-white cursor-pointer relative"
-                onMouseEnter={() =>
-                  product.images?.length > 1 &&
-                  setHoverImages((prev) => ({
-                    ...prev,
-                    [product._id]: product.images[1],
-                  }))
-                }
-                onMouseLeave={() =>
-                  product.images?.length > 1 &&
-                  setHoverImages((prev) => ({
-                    ...prev,
-                    [product._id]: product.images?.[0] || product.thumbnail,
-                  }))
-                }
-              >
-                {/* Favorite */}
-                <div
-                  onClick={() => toggleFavorite(product._id)}
-                  className={`absolute top-2 left-2 z-10 p-2 rounded-full ${
-                    favorites.includes(product._id)
-                      ? "text-red-500"
-                      : "text-gray-400 hover:text-black"
-                  }`}
-                >
-                  <AiFillHeart size={18} />
+                  {/* ❤️ */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleWishlist(product._id);
+                    }}
+                    className="absolute top-3 right-3 bg-white/80 backdrop-blur p-2 rounded-full shadow"
+                  >
+                    {wishlist.includes(product._id) ? (
+                      <AiFillHeart className="text-red-500" />
+                    ) : (
+                      <AiOutlineHeart />
+                    )}
+                  </button>
                 </div>
 
-                {/* Image */}
-                <Link href={`/collections/${product._id.toString()}`}>
-                
-                  <div
-                    id={`img-${product._id}`}
-                    className="relative h-[200px] md:h-[260px] overflow-hidden mb-4"
-                  >
-                    <Image
-                      src={
-                        hoverImages[product._id] ||
-                        product.images?.[0] ||
-                        product.thumbnail
-                      }
-                      alt={product.title}
-                      fill
-                      unoptimized
-                      onError={(e) => {
-                        e.currentTarget.src = "/image-not-found.png";
-                      }}
-                      className="object-cover group-hover:scale-105 transition duration-500 hidden md:block"
-                    />
-
-                    <div className="md:hidden relative w-full h-full">
-                      <Image
-                        src={
-                          product.images?.[mobileIndex[product._id] || 0] ||
-                          product.thumbnail
-                        }
-                        alt={product.title}
-                        fill
-                        unoptimized
-                        className="object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = "/image-not-found.png";
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <h3 className="text-sm tracking-widest mb-1">
-                    {product.title?.toUpperCase() || "NO TITLE"}
+                <div className="p-4">
+                  <h3 className="text-sm font-medium line-clamp-2 mb-1">
+                    {product.title}
                   </h3>
-                  <p className="text-sm text-gray-500">${product.price}</p>
-                </Link>
 
-                {/* Cart */}
-                <motion.div
-                  onClick={() => addToCart(product)}
-                  whileTap={{ scale: 1.2 }}
-                  className={`absolute bottom-2 right-2 ${
-                    cart.includes(product._id)
-                      ? "text-green-600"
-                      : "text-gray-500 hover:text-black"
-                  }`}
-                >
-                  <AiOutlineShoppingCart size={20} />
-                </motion.div>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="font-semibold text-lg">
+                      ${product.price}
+                    </p>
 
-                <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-black group-hover:w-full transition-all"></div>
-              </motion.div>
-            ))
-          )}
-        </div>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        addToCart(product);
+                      }}
+                      className="p-2 rounded-full bg-gray-100 hover:bg-black hover:text-white transition"
+                    >
+                      <AiOutlineShoppingCart />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        ))}
+
+        {/* ✨ SHIMMER SKELETON */}
+        {loading &&
+          Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-[300px] rounded-xl overflow-hidden relative"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-[shimmer_1.5s_infinite]" />
+            </div>
+          ))}
       </div>
 
-      {/* Load More */}
-      {filteredProducts.length > 18 && (
-        <div className="text-center mt-6 flex justify-center gap-4">
-          {visibleCount < filteredProducts.length && (
-            <button onClick={loadMore}>LOAD MORE</button>
-          )}
-        </div>
-      )}
+      {/* LOAD TRIGGER */}
+      <div ref={loaderRef} className="h-10"></div>
 
-      <div ref={cartRef} className="fixed top-6 right-6 w-10 h-10 z-50"></div>
+      {/* SHIMMER STYLE */}
+      <style jsx>{`
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+      `}</style>
     </section>
   );
 }

@@ -18,15 +18,13 @@ export default function ProductClient({ initialData }) {
   const [mainImage, setMainImage] = useState(
     initialData.product.images?.[0] ||
       initialData.product.thumbnail ||
-      "/fallback.png"
+      "/fallback.png",
   );
 
   const [wishlist, setWishlist] = useState([]);
   const [toast, setToast] = useState(null);
 
-  const [reviews, setReviews] = useState(
-    initialData.product.reviews || []
-  );
+  const [reviews, setReviews] = useState(initialData.product.reviews || []);
 
   const [showReviewModal, setShowReviewModal] = useState(false);
 
@@ -40,8 +38,7 @@ export default function ProductClient({ initialData }) {
 
   /* ================= INIT (CLIENT ONLY) ================= */
   useEffect(() => {
-    const storedWishlist =
-      JSON.parse(localStorage.getItem("wishlist")) || [];
+    const storedWishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
     setWishlist(storedWishlist);
   }, []);
 
@@ -63,39 +60,48 @@ export default function ProductClient({ initialData }) {
 
   const avgRating =
     reviews.length > 0
-      ? reviews.reduce((acc, r) => acc + (r.rating || 0), 0) /
-        reviews.length
+      ? reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length
       : 0;
 
   /* ================= ACTIONS ================= */
-  const handleAddToCart = () => {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    const existing = cart.find((item) => item._id === product._id);
+const handleAddToCart = () => {
+  const cart = JSON.parse(localStorage.getItem("cart")) || [];
 
-    if (existing) existing.quantity += quantity;
-    else cart.push({ ...product, quantity });
+  const id = String(product._id);
+  const qty = Number(quantity);
 
-    localStorage.setItem("cart", JSON.stringify(cart));
-    showToast("Added to cart 🛒");
-  };
+  const existing = cart.find((item) => item.id === id);
+
+  let updated;
+
+  if (existing) {
+    updated = cart.map((item) =>
+      item.id === id
+        ? { ...item, qty: item.qty + qty }
+        : item
+    );
+  } else {
+    updated = [...cart, { id, qty }];
+  }
+
+  localStorage.setItem("cart", JSON.stringify(updated));
+
+  showToast("Added to cart 🛒");
+};
 
   const toggleWishlist = () => {
     let updated;
-    const isWishlisted = wishlist.find(
-      (item) => item._id === product._id
-    );
+    const isWishlisted = wishlist.find((item) => item._id === product._id);
 
     if (isWishlisted) {
-      updated = wishlist.filter(
-        (item) => item._id !== product._id
-      );
+      updated = wishlist.filter((item) => item._id !== product._id);
       showToast("Removed from wishlist");
     } else {
       updated = [...wishlist, product];
       showToast("Added to wishlist ❤️");
     }
 
-    setWishlist(updated);
+    setWishlist([...updated]);
     localStorage.setItem("wishlist", JSON.stringify(updated));
   };
 
@@ -117,14 +123,11 @@ export default function ProductClient({ initialData }) {
         email: "",
       };
 
-      const res = await fetch(
-        `/api/products/${product._id}/review`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(reviewPayload),
-        }
-      );
+      const res = await fetch(`/api/products/${product._id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reviewPayload),
+      });
 
       const data = await res.json();
 
@@ -145,25 +148,18 @@ export default function ProductClient({ initialData }) {
 
   /* ================= DERIVED ================= */
   if (!product)
-    return (
-      <p className="text-center mt-20 text-gray-500">
-        Product not found
-      </p>
-    );
+    return <p className="text-center mt-20 text-gray-500">Product not found</p>;
 
   const discountedPrice = product.discountPercentage
     ? (product.price * (100 - product.discountPercentage)) / 100
     : product.price;
 
   const inStock =
-    product.availabilityStatus === "In Stock" ||
-    product.stock > 0;
+    product.availabilityStatus === "In Stock" || product.stock > 0;
 
-  const isWishlisted = wishlist.find(
-    (item) => item._id === product._id
-  );
+  const isWishlisted = wishlist.find((item) => item._id === product._id);
 
-    return (
+  return (
     <section className="max-w-7xl mx-auto px-6 md:px-12 py-20">
       {/* Toast */}
       {toast && (

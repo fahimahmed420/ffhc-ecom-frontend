@@ -1,27 +1,40 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ShoppingBag, Search, User, Menu, X, LogOut } from "lucide-react";
+import {
+  ShoppingBag,
+  Search,
+  User,
+  X,
+  LogOut,
+  LayoutDashboard,
+} from "lucide-react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { motion, AnimatePresence, useMotionValue } from "framer-motion";
+import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-
-//  import auth
 import { logoutUser } from "@/lib/firebase/auth";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
-  const [open, setOpen] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [query, setQuery] = useState("");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
   const router = useRouter();
+  const pathname = usePathname();
+
   const { cart } = useCart();
   const { user } = useAuth();
 
-  const dropdownRef = useRef(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [query, setQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showNavbar, setShowNavbar] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
+
+  const navRef = useRef(null);
+  const itemRefs = useRef({});
+  const lastScrollY = useRef(0);
+
+  const x = useMotionValue(0);
+  const width = useMotionValue(0);
 
   const navItems = [
     { name: "HOME", path: "/" },
@@ -29,25 +42,68 @@ export default function Navbar() {
     { name: "ABOUT", path: "/about" },
   ];
 
-  // 🔍 Search
-  const handleSearch = async () => {
+  // INDICATOR
+  const moveIndicator = (path) => {
+    const el = itemRefs.current[path];
+    const nav = navRef.current;
+
+    if (!el || !nav) return;
+
+    const rect = el.getBoundingClientRect();
+    const parentRect = nav.getBoundingClientRect();
+
+    x.set(rect.left - parentRect.left);
+    width.set(rect.width);
+  };
+
+  useEffect(() => {
+    moveIndicator(pathname);
+  }, [pathname]);
+
+  const handleHover = (path) => moveIndicator(path);
+  const handleLeave = () => moveIndicator(pathname);
+
+  // SEARCH
+  const handleSearch = () => {
     if (!query.trim()) return;
     router.push(`/collections?search=${query}`);
-    await fetch(`https://dummyjson.com/products/search?q=${query}`);
   };
 
-  // 🔓 Logout
+  // LOGOUT
   const handleLogout = async () => {
-    try {
-      await logoutUser();
-      setDropdownOpen(false);
-      router.push("/");
-    } catch (err) {
-      console.error(err);
-    }
+    await logoutUser();
+    setDropdownOpen(false);
+    router.push("/");
   };
 
-  // ❌ Close dropdown on outside click
+  // SCROLL
+  useEffect(() => {
+    const handleScroll = () => {
+      const current = window.scrollY;
+      const diff = current - lastScrollY.current;
+
+      setScrolled(current > 10);
+
+      if (Math.abs(diff) < 8) return;
+
+      if (current < 80) {
+        setShowNavbar(true);
+      } else if (diff > 0) {
+        setShowNavbar(false);
+      } else {
+        setShowNavbar(true);
+      }
+
+      lastScrollY.current = current;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // OUTSIDE CLICK
+  const dropdownRef = useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -56,43 +112,75 @@ export default function Navbar() {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   return (
-    <nav className="border-b border-gray-300 px-6 md:px-12 py-4 flex justify-between items-center relative">
-
-      {/* Logo */}
-      <Link href="/">
-        <h1 className="tracking-[0.2em] cursor-pointer">FFHC</h1>
+    <div className="mb-10">
+      <motion.header
+      initial={{ y: 0 }}
+      animate={{ y: showNavbar ? 0 : -120 }}
+      transition={{ duration: 0.35 }}
+      className={`
+        fixed top-0 left-0 w-full z-50
+        px-6 md:px-12 py-4
+        flex items-center justify-between
+        border-b border-black/10
+        transition-all duration-300
+        ${
+          scrolled
+            ? "bg-white/85 backdrop-blur-xl shadow-sm"
+            : "bg-white/60 backdrop-blur-md"
+        }
+      `}
+    >
+      {/* LOGO (STATIC) */}
+      <Link href="/" className="text-sm font-medium tracking-[0.3em]">
+        FFHC
       </Link>
 
-      {/* Desktop Menu */}
-      <ul className="hidden md:flex gap-10 text-[11px] tracking-widest">
+      {/* NAV */}
+      <nav
+        ref={navRef}
+        className="hidden md:flex relative items-center gap-10 text-[12px] tracking-widest"
+      >
         {navItems.map((item) => (
-          <li key={item.name} className="relative group cursor-pointer">
-            <Link href={item.path}>
-              {item.name}
-              <span className="absolute left-0 bottom-0 w-0 h-[1px] bg-black transition-all group-hover:w-full"></span>
-            </Link>
-          </li>
+          <Link
+            key={item.path}
+            href={item.path}
+            ref={(el) => (itemRefs.current[item.path] = el)}
+            onMouseEnter={() => handleHover(item.path)}
+            onMouseLeave={handleLeave}
+            className={`px-2 py-1 transition ${
+              pathname === item.path
+                ? "text-black"
+                : "text-black/60 hover:text-black"
+            }`}
+          >
+            {item.name}
+          </Link>
         ))}
-      </ul>
 
-      {/* Right Section */}
+        <motion.div
+          className="absolute bottom-0 h-[2px] bg-black rounded-full"
+          style={{ x, width }}
+          transition={{ type: "spring", stiffness: 500, damping: 40 }}
+        />
+      </nav>
+
+      {/* RIGHT */}
       <div className="flex items-center gap-4 relative">
 
-        {/* 🔍 Search */}
+        {/* SEARCH */}
         <AnimatePresence>
           {showSearch && (
             <motion.input
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 180, opacity: 1 }}
+              animate={{ width: 200, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              type="text"
+              className="border px-3 py-1 text-sm bg-white outline-none"
               placeholder="Search..."
-              className="border px-3 py-1 text-sm outline-none"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -101,7 +189,7 @@ export default function Navbar() {
         </AnimatePresence>
 
         {showSearch ? (
-          <X size={16} className="cursor-pointer" onClick={() => setShowSearch(false)} />
+          <X size={16} onClick={() => setShowSearch(false)} />
         ) : (
           <Search
             size={16}
@@ -110,91 +198,80 @@ export default function Navbar() {
           />
         )}
 
-        {/* Cart */}
-        <div className="relative cursor-pointer" onClick={() => router.push("/cart")}>
-          <ShoppingBag className="hover:scale-110 transition" size={16} />
+        {/* CART (HIDDEN ON SMALL DEVICES) */}
+        <div
+          className="relative cursor-pointer hidden md:flex"
+          onClick={() => router.push("/cart")}
+        >
+          <ShoppingBag size={18} />
           {cart.length > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+            <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
               {cart.length}
             </span>
           )}
         </div>
 
-        {/* 👤 AUTH SECTION */}
-        <div className="relative" ref={dropdownRef}>
-
+        {/* USER (HIDDEN ON SMALL DEVICES) */}
+        <div className="relative hidden md:flex" ref={dropdownRef}>
           {!user ? (
-            // 🔐 NOT LOGGED IN → SHOW LOGIN BUTTON
             <button
               onClick={() => router.push("/auth")}
-              className="text-xs border px-3 py-1 hover:bg-black hover:text-white transition tracking-widest"
+              className="text-xs border px-3 py-1 hover:bg-black hover:text-white transition"
             >
               LOGIN
             </button>
           ) : (
-            // 👤 LOGGED IN → USER ICON
-            <div className="relative">
-              <User
-                size={16}
-                className="cursor-pointer hover:scale-110 transition"
+            <div>
+              <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-              />
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition"
+              >
+                <User size={18} />
+              </button>
 
-              {/* Dropdown */}
               <AnimatePresence>
                 {dropdownOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="absolute right-0 mt-3 w-40 bg-white border shadow-md text-sm z-50"
+                    initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                    className="
+                      absolute right-0 mt-3 w-52
+                      bg-white/80 backdrop-blur-xl
+                      border border-black/10
+                      shadow-xl rounded-xl
+                      overflow-hidden
+                    "
                   >
-                    <button
-                      onClick={() => {
-                        router.push("/dashboard");
-                        setDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                    >
-                      Dashboard
-                    </button>
+                    <div className="p-2">
+                      <button
+                        onClick={() => {
+                          router.push("/dashboard");
+                          setDropdownOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 rounded-lg"
+                      >
+                        <LayoutDashboard size={14} />
+                        Dashboard
+                      </button>
 
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-                    >
-                      <LogOut size={14} />
-                      Logout
-                    </button>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 rounded-lg text-red-500"
+                      >
+                        <LogOut size={14} />
+                        Logout
+                      </button>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           )}
         </div>
-
-        {/* Mobile Menu */}
-        <Menu className="md:hidden cursor-pointer" onClick={() => setOpen(!open)} />
       </div>
-
-      {/* Mobile Menu */}
-      {open && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="absolute top-16 left-0 w-full bg-white shadow-md p-6 md:hidden"
-        >
-          <ul className="space-y-4 text-sm">
-            {navItems.map((item) => (
-              <li key={item.name}>
-                <Link href={item.path} onClick={() => setOpen(false)}>
-                  {item.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-      )}
-    </nav>
+    </motion.header>
+    </div>
   );
 }

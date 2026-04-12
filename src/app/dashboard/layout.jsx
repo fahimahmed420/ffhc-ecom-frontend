@@ -12,8 +12,11 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/firebase.config";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+
+// ✅ import auth context
+import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
@@ -21,44 +24,28 @@ export default function DashboardLayout({ children }) {
 
   const [open, setOpen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
 
-  //  Listen to auth state & fetch role
+  // ✅ use global auth
+  const { user, role } = useAuth();
+
+  // ✅ Protect dashboard
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
+    if (user === null) {
+      router.push("/auth");
+    }
+  }, [user, router]);
 
-      if (currentUser?.email) {
-        try {
-          const res = await fetch(`/api/users?email=${currentUser.email}`);
-          const data = await res.json();
-          setRole(data?.role || "user");
-        } catch (err) {
-          console.error("Failed to fetch role:", err);
-          setRole("user");
-        }
-      } else {
-        setRole(null);
-      }
-
-      setAuthLoading(false); //  done loading
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  //  Logout
+  // 🔓 Logout
   const handleLogout = async () => {
     await signOut(auth);
     setOpen(false);
     router.push("/auth");
   };
 
-  //  Navigation items with role check
+  // ✅ Navigation items with role
   const navItems = [
     { name: "HOME", path: "/", icon: <Home size={14} /> },
+
     ...(role === "admin"
       ? [
           {
@@ -68,6 +55,7 @@ export default function DashboardLayout({ children }) {
           },
         ]
       : []),
+
     {
       name: "ORDERS",
       path: "/dashboard/orders",
@@ -75,22 +63,13 @@ export default function DashboardLayout({ children }) {
     },
   ];
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-10 h-10 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-sm tracking-widest uppercase">Authenticating...</p>
-        </div>
-      </div>
-    );
-  }
   return (
     <div className="min-h-screen flex flex-col">
-      {/*  Navbar */}
+      {/* Navbar */}
       <nav className="border-b border-gray-300 px-6 md:px-12 py-4 flex justify-between items-center relative">
+        
         {/* Logo */}
-        <Link href="/dashboard">
+        <Link href="/">
           <h1 className="tracking-[0.2em] cursor-pointer">FFHC</h1>
         </Link>
 
@@ -98,6 +77,7 @@ export default function DashboardLayout({ children }) {
         <div className="hidden md:flex items-center gap-8 text-[11px] tracking-widest">
           {navItems.map((item) => {
             const isActive = pathname === item.path;
+
             return (
               <Link
                 key={item.name}
@@ -108,6 +88,7 @@ export default function DashboardLayout({ children }) {
               >
                 {item.icon}
                 {item.name}
+
                 <span
                   className={`absolute left-0 -bottom-1 h-[1px] bg-black transition-all ${
                     isActive ? "w-full" : "w-0 group-hover:w-full"
@@ -131,6 +112,12 @@ export default function DashboardLayout({ children }) {
 
                 {open && (
                   <div className="absolute right-0 mt-3 w-40 bg-white border border-gray-200 shadow-sm text-[11px] tracking-widest">
+                    
+                    {/* 🔥 Role label */}
+                    <p className="px-4 py-2 text-gray-400 text-[10px]">
+                      {role?.toUpperCase()}
+                    </p>
+
                     <Link
                       href="/dashboard/profile"
                       className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100"
@@ -175,7 +162,8 @@ export default function DashboardLayout({ children }) {
       {/* Mobile Menu */}
       {mobileMenu && (
         <div className="fixed inset-0 bg-white z-50 p-6 flex flex-col">
-          {/* Top bar */}
+          
+          {/* Top */}
           <div className="flex justify-between items-center mb-10">
             <h1 className="tracking-[0.2em]">FFHC</h1>
             <X
@@ -189,12 +177,15 @@ export default function DashboardLayout({ children }) {
           <div className="flex flex-col gap-6 text-[12px] tracking-widest">
             {navItems.map((item) => {
               const isActive = pathname === item.path;
+
               return (
                 <Link
                   key={item.name}
                   href={item.path}
                   onClick={() => setMobileMenu(false)}
-                  className={`${isActive ? "text-black" : "text-gray-500"} flex items-center gap-2`}
+                  className={`${
+                    isActive ? "text-black" : "text-gray-500"
+                  } flex items-center gap-2`}
                 >
                   {item.icon}
                   {item.name}

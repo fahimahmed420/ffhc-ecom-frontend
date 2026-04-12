@@ -1,4 +1,9 @@
-import nodemailer from "nodemailer";
+export const runtime = "nodejs";
+
+import { generateOrderId } from "@/utils/orderId";
+import { generateInvoiceHTML } from "@/lib/invoice";
+import { generatePDF } from "@/lib/pdf";
+import { createTransporter } from "@/lib/mail";
 
 export async function POST(req) {
   try {
@@ -6,58 +11,43 @@ export async function POST(req) {
 
     if (!body?.customer?.email) {
       return Response.json(
-        { success: false, message: "Missing customer email" },
+        { success: false, message: "Email required" },
         { status: 400 }
       );
     }
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    // 1. Order ID
+    body.orderId = generateOrderId();
 
-    const itemsHTML = (body.items || [])
-      .map(
-        (i) => `
-        <li>
-          ${i.title || "Item"} × ${i.qty || 1}
-          = ৳${((i.qty || 1) * (i.discountedPrice || 0)).toFixed(0)}
-        </li>
-      `
-      )
-      .join("");
+    // 2. HTML invoice
+    const html = await generateInvoiceHTML(body);
+
+    // 3. PDF
+    const pdfBuffer = await generatePDF(html);
+
+    // 4. Email
+    const transporter = createTransporter();
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: body.customer.email,
-      subject: "🧾 Your Order Invoice",
-      html: `
-        <h2>Order Confirmed</h2>
-
-        <p><b>Name:</b> ${body.customer.name}</p>
-        <p><b>Phone:</b> ${body.customer.phone}</p>
-
-        <h3>Items:</h3>
-        <ul>${itemsHTML}</ul>
-
-        <p><b>Subtotal:</b> ৳${body.subtotal}</p>
-        <p><b>Shipping:</b> ৳${body.shipping}</p>
-        <h3>Total: ৳${body.total}</h3>
-
-        <p>Payment: Cash on Delivery</p>
-      `,
+      subject: `Order Confirmation - ${body.orderId}`,
+      html: `<h2>Thanks for your order!</h2><p>Order ID: ${body.orderId}</p>`,
+      attachments: [
+        {
+          filename: `invoice-${body.orderId}.pdf`,
+          content: pdfBuffer,
+        },
+      ],
     });
 
     return Response.json({
       success: true,
+      orderId: body.orderId,
       message: "Order placed successfully",
     });
-
   } catch (err) {
-    console.error("ORDER API ERROR:", err);
+    console.error("ORDER ERROR:", err);
 
     return Response.json(
       {

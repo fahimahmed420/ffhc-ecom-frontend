@@ -25,7 +25,7 @@ export default function CartPage() {
 
     const fetchProducts = async () => {
       const ids = cart.map((item) =>
-        typeof item === "string" ? item : item.id
+        typeof item === "string" ? item : item.id,
       );
 
       const res = await fetch(`/api/products?ids=${ids.join(",")}`);
@@ -41,7 +41,7 @@ export default function CartPage() {
   // ================= HELPERS =================
   const getQty = (id) => {
     const item = cart.find((c) =>
-      typeof c === "string" ? c === id : c.id === id
+      typeof c === "string" ? c === id : c.id === id,
     );
     return typeof item === "string" ? 1 : item?.qty || 1;
   };
@@ -65,7 +65,7 @@ export default function CartPage() {
 
   const removeItem = (id) => {
     const updated = cart.filter((item) =>
-      typeof item === "string" ? item !== id : item.id !== id
+      typeof item === "string" ? item !== id : item.id !== id,
     );
 
     setCart(updated);
@@ -90,7 +90,7 @@ export default function CartPage() {
   // ================= TOTAL =================
   const subtotal = merged.reduce(
     (acc, item) => acc + item.discountedPrice * item.qty,
-    0
+    0,
   );
 
   // ================= UI =================
@@ -206,35 +206,46 @@ export default function CartPage() {
 
         {/* SUMMARY */}
         <div className="sticky top-24 h-fit p-6 rounded-2xl bg-white/80 backdrop-blur shadow-lg">
-          <h2 className="text-xl font-semibold mb-6">
-            Order Summary
-          </h2>
+          {/* TITLE */}
+          <h2 className="text-xl font-semibold mb-6">Order Summary</h2>
 
-          <div className="space-y-3 text-gray-600">
-            <div className="flex justify-between">
+          {/* PRICING */}
+          <div className="space-y-3 text-sm text-gray-700">
+            {/* Subtotal */}
+            <div className="flex justify-between text-2xl font-extrabold">
               <span>Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span className="text-2xl font-extrabold">${subtotal.toFixed(2)}</span>
             </div>
 
-            <div className="flex justify-between">
-              <span>Shipping</span>
-              <span className="text-green-600">Free</span>
+            {/* Shipping Info */}
+            <div className="pt-3 border-t">
+              <p className="text-xs text-gray-400 mb-2">Shipping options</p>
+
+              <div className="flex justify-between text-gray-600">
+                <span>Inside Dhaka</span>
+                <span className="text-green-600 font-semibold">৳80</span>
+              </div>
+
+              <div className="flex justify-between text-gray-600">
+                <span>Outside Dhaka</span>
+                <span className="text-green-600 font-semibold">৳120</span>
+              </div>
             </div>
           </div>
 
-          <div className="border-t my-6" />
+          {/* NOTE */}
+          <p className="text-xs text-gray-400 mt-4">
+            Shipping will be calculated at checkout
+          </p>
 
-          <div className="flex justify-between text-lg font-semibold mb-6">
-            <span>Total</span>
-            <span>${subtotal.toFixed(2)}</span>
-          </div>
-
+          {/* BUTTON */}
           <Link href="/checkout">
-          <button className="w-full py-4 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition">
-            Proceed to Checkout →
-          </button>
+            <button className="w-full mt-6 py-4 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition">
+              Proceed to Checkout →
+            </button>
           </Link>
 
+          {/* CONTINUE SHOPPING */}
           <Link
             href="/collections"
             className="block text-center mt-4 text-sm text-gray-500 hover:underline"

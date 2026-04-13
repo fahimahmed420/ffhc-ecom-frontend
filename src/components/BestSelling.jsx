@@ -11,7 +11,6 @@ function BestSellingSkeleton() {
   return (
     <section className="px-6 md:px-12 py-20 max-w-7xl mx-auto animate-pulse">
       <div className="h-6 w-48 bg-gray-200 rounded mx-auto mb-12" />
-
       <div className="grid md:grid-cols-4 grid-cols-2 gap-6">
         {[1, 2, 3, 4].map((item) => (
           <div key={item} className="border bg-white">
@@ -34,11 +33,12 @@ export default function BestSelling() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  /* ⭐ Calculate avg rating from MongoDB reviews */
+  /* ⭐ SAME LOGIC AS ProductClient */
   const calculateAvg = (reviews = []) => {
     if (!reviews.length) return 0;
     return (
-      reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length
+      reviews.reduce((acc, r) => acc + (r.rating || 0), 0) /
+      reviews.length
     );
   };
 
@@ -53,45 +53,19 @@ export default function BestSelling() {
     return stars;
   };
 
-  /* 🔄 Load products */
-  const loadProducts = () => {
-    fetch("/api/products")
+  /* 🔄 Load BEST RATED products */
+  useEffect(() => {
+   fetch("/api/products/best-selling")
       .then((res) => res.json())
       .then((data) => {
-        const list = Array.isArray(data) ? data : data.products;
-
-        const enriched = list.map((p) => ({
-          ...p,
-          avgRating: calculateAvg(p.reviews || []),
-        }));
-
-        const sorted = enriched
-          .sort((a, b) => b.avgRating - a.avgRating)
-          .slice(0, 4);
-
-        setProducts(sorted);
+        setProducts(data.products || []);
         setLoading(false);
       })
       .catch((err) => {
         console.error(err);
         setLoading(false);
       });
-  };
-
-  useEffect(() => {
-    loadProducts();
   }, []);
-
-  const addToCart = (product) => {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-
-    const existing = cart.find((item) => item._id === product._id);
-
-    if (existing) existing.quantity += 1;
-    else cart.push({ ...product, quantity: 1 });
-
-    localStorage.setItem("cart", JSON.stringify(cart));
-  };
 
   if (loading) return <BestSellingSkeleton />;
 
@@ -102,52 +76,71 @@ export default function BestSelling() {
       </h2>
 
       <div className="grid md:grid-cols-4 grid-cols-2 gap-6">
-        {products.map((p) => (
-          <motion.div
-            key={p._id}
-            whileHover={{ y: -6 }}
-            className="group border bg-white cursor-pointer relative overflow-hidden"
-            onClick={() => router.push(`/collections/${p._id}`)}
-          >
-            {/* Image */}
-            <div className="relative w-full aspect-square overflow-hidden">
-              <Image
-                src={p.thumbnail || "/fallback.png"}
-                alt={p.title}
-                fill
-                className="object-cover group-hover:scale-105 transition"
-                onError={(e) => (e.currentTarget.src = "/fallback.png")}
-              />
+        {products.map((p) => {
+          // ✅ Use backend avgRating OR fallback to frontend calculation
+          const rating =
+            p.avgRating !== undefined
+              ? p.avgRating
+              : calculateAvg(p.reviews);
 
-              {/* ⭐ Rating */}
-              <div className="absolute top-2 right-2 text-[11px] border bg-white px-3 py-1 flex items-center gap-1">
-                {renderStars(p.avgRating)}
-                <span className="text-[10px] ml-1">
-                  {p.avgRating.toFixed(1)}
-                </span>
+          return (
+            <motion.div
+              key={p._id}
+              whileHover={{ y: -6 }}
+              className="group border bg-white cursor-pointer relative overflow-hidden"
+              onClick={() => router.push(`/collections/${p._id}`)}
+            >
+              {/* Image */}
+              <div className="relative w-full aspect-square overflow-hidden">
+                <Image
+                  src={p.thumbnail || "/fallback.png"}
+                  alt={p.title}
+                  fill
+                  className="object-cover group-hover:scale-105 transition"
+                />
+
+                {/* ⭐ Rating */}
+                <div className="absolute top-2 right-2 text-[11px] border bg-white px-3 py-1 flex items-center gap-1">
+                  {renderStars(rating)}
+                  <span className="text-[10px] ml-1">
+                    {rating.toFixed(1)}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {/* Info */}
-            <div className="p-6 relative">
-              <h3 className="text-sm font-medium mb-2 line-clamp-1">
-                {p.title}
-              </h3>
+              {/* Info */}
+              <div className="p-6 relative">
+                <h3 className="text-sm font-medium mb-2 line-clamp-1">
+                  {p.title}
+                </h3>
 
-              <p className="text-sm text-gray-500 mb-2">${p.price}</p>
+                <p className="text-sm text-gray-500 mb-2">
+                  ${p.price}
+                </p>
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  addToCart(p);
-                }}
-                className="absolute bottom-0 left-0 w-full bg-black text-white py-2 text-[11px] translate-y-full group-hover:translate-y-0 transition"
-              >
-                ADD TO CART
-              </button>
-            </div>
-          </motion.div>
-        ))}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const cart =
+                      JSON.parse(localStorage.getItem("cart")) || [];
+
+                    const existing = cart.find(
+                      (item) => item._id === p._id
+                    );
+
+                    if (existing) existing.quantity += 1;
+                    else cart.push({ ...p, quantity: 1 });
+
+                    localStorage.setItem("cart", JSON.stringify(cart));
+                  }}
+                  className="absolute bottom-0 left-0 w-full bg-black text-white py-2 text-[11px] translate-y-full group-hover:translate-y-0 transition"
+                >
+                  ADD TO CART
+                </button>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
     </section>
   );

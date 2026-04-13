@@ -26,7 +26,9 @@ export default function Collections() {
   const loaderRef = useRef(null);
   const fetchingRef = useRef(false);
 
-  // ✅ LOAD STORAGE
+  // ===============================
+  // LOAD LOCAL STORAGE
+  // ===============================
   useEffect(() => {
     const w = localStorage.getItem("wishlist");
     const c = localStorage.getItem("cart");
@@ -35,7 +37,26 @@ export default function Collections() {
     if (c) setCart(JSON.parse(c));
   }, []);
 
-  // ✅ SAVE HELPERS
+  // ===============================
+  // FETCH CATEGORIES (✅ FIX)
+  // ===============================
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("/api/categories");
+        const data = await res.json();
+        setCategories(data.categories || []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // ===============================
+  // HELPERS
+  // ===============================
   const updateWishlist = (list) => {
     setWishlist(list);
     localStorage.setItem("wishlist", JSON.stringify(list));
@@ -46,7 +67,6 @@ export default function Collections() {
     localStorage.setItem("cart", JSON.stringify(list));
   };
 
-  // ❤️ WISHLIST TOGGLE
   const toggleWishlist = (id) => {
     if (wishlist.includes(id)) {
       updateWishlist(wishlist.filter((i) => i !== id));
@@ -57,7 +77,6 @@ export default function Collections() {
     }
   };
 
-  // 🛒 ADD TO CART
   const addToCart = (product) => {
     if (cart.includes(product._id)) {
       toast("Already in cart ⚠️");
@@ -69,7 +88,9 @@ export default function Collections() {
     toast.success("Added to cart 🛒");
   };
 
-  // 🚀 FETCH PRODUCTS
+  // ===============================
+  // FETCH PRODUCTS (✅ FIXED)
+  // ===============================
   const fetchProducts = useCallback(
     async (reset = false) => {
       if (fetchingRef.current) return;
@@ -82,7 +103,9 @@ export default function Collections() {
         const res = await fetch(
           `/api/products?page=${
             reset ? 0 : page
-          }&limit=12&category=${selectedCategory}&sort=${sortOrder}`
+          }&limit=12&category=${encodeURIComponent(
+            selectedCategory,
+          )}&sort=${sortOrder}`,
         );
 
         const data = await res.json();
@@ -98,38 +121,43 @@ export default function Collections() {
         });
 
         setHasMore(data.hasMore);
-
-        if (categories.length === 0 && newProducts.length > 0) {
-          setCategories([
-            "All",
-            ...new Set(newProducts.map((p) => p.category)),
-          ]);
-        }
       } catch (err) {
-        console.error(err);
+        console.error("Product fetch error:", err);
       }
 
       setLoading(false);
       fetchingRef.current = false;
     },
-    [page, selectedCategory, sortOrder, hasMore, categories.length]
+    [page, selectedCategory, sortOrder, hasMore],
   );
 
+  // ===============================
+  // INITIAL LOAD
+  // ===============================
   useEffect(() => {
     fetchProducts(true);
   }, []);
 
+  // ===============================
+  // CATEGORY / SORT CHANGE
+  // ===============================
   useEffect(() => {
     setPage(0);
     setHasMore(true);
     fetchProducts(true);
   }, [selectedCategory, sortOrder]);
 
+  // ===============================
+  // PAGINATION
+  // ===============================
   useEffect(() => {
     if (page === 0) return;
     fetchProducts();
   }, [page]);
 
+  // ===============================
+  // INFINITE SCROLL
+  // ===============================
   useEffect(() => {
     if (!loaderRef.current) return;
 
@@ -143,30 +171,25 @@ export default function Collections() {
     return () => observer.disconnect();
   }, [hasMore]);
 
+  // ===============================
+  // UI
+  // ===============================
   return (
     <section className="px-4 md:px-12 py-10 max-w-7xl mx-auto">
       <Toaster position="top-right" />
 
-      {/* HEADER */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-          Latest Products
-        </h1>
+        <h1 className="text-3xl md:text-4xl font-semibold">Latest Products</h1>
 
-        {/* ✨ MODERN SORT */}
-        <div className="relative">
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            className="appearance-none px-4 py-2 pr-10 rounded-xl bg-white/70 backdrop-blur border shadow-sm hover:shadow-md transition focus:outline-none"
-          >
-            <option value="default">Sort</option>
-            <option value="asc">Price: Low → High</option>
-            <option value="desc">Price: High → Low</option>
-          </select>
-
-          <span className="absolute right-3 top-2.5 text-gray-500">⌄</span>
-        </div>
+        <select
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value)}
+          className="px-4 py-2 rounded-xl border"
+        >
+          <option value="default">Sort</option>
+          <option value="asc">Price: Low → High</option>
+          <option value="desc">Price: High → Low</option>
+        </select>
       </div>
 
       {/* CATEGORIES */}
@@ -174,29 +197,27 @@ export default function Collections() {
         {categories.map((cat, i) => (
           <button
             key={i}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-1.5 rounded-full text-sm transition ${
-              selectedCategory === cat
+            onClick={() => setSelectedCategory(cat.name)}
+            className={`px-4 py-1.5 rounded-full text-sm flex items-center gap-1 ${
+              selectedCategory === cat.name
                 ? "bg-black text-white"
                 : "bg-gray-100 hover:bg-gray-200"
             }`}
           >
-            {cat}
+            {cat.name}
+            <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-black/10">
+              {cat.count}
+            </span>
           </button>
         ))}
       </div>
 
-      {/* PRODUCTS GRID */}
+      {/* PRODUCTS */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
         {products.map((product) => (
-          <motion.div
-            key={product._id}
-            whileHover={{ scale: 1.03 }}
-            className="bg-white rounded-2xl shadow-sm hover:shadow-md transition overflow-hidden"
-          >
-            {/* CLICKABLE CARD */}
+          <motion.div key={product._id} whileHover={{ scale: 1.03 }}>
             <Link href={`/collections/${product._id}`}>
-              <div className="cursor-pointer">
+              <div className="bg-white rounded-xl overflow-hidden shadow">
                 <div className="relative h-[220px]">
                   <Image
                     src={product.images?.[0] || product.thumbnail}
@@ -205,13 +226,12 @@ export default function Collections() {
                     className="object-cover"
                   />
 
-                  {/* ❤️ */}
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       toggleWishlist(product._id);
                     }}
-                    className="absolute top-3 right-3 bg-white/80 backdrop-blur p-2 rounded-full shadow"
+                    className="absolute top-3 right-3 bg-white p-2 rounded-full"
                   >
                     {wishlist.includes(product._id) ? (
                       <AiFillHeart className="text-red-500" />
@@ -222,21 +242,16 @@ export default function Collections() {
                 </div>
 
                 <div className="p-4">
-                  <h3 className="text-sm font-medium line-clamp-2 mb-1">
-                    {product.title}
-                  </h3>
+                  <h3 className="text-sm">{product.title}</h3>
 
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="font-semibold text-lg">
-                      ${product.price}
-                    </p>
+                  <div className="flex justify-between mt-2">
+                    <p>${product.price}</p>
 
                     <button
                       onClick={(e) => {
                         e.preventDefault();
                         addToCart(product);
                       }}
-                      className="p-2 rounded-full bg-gray-100 hover:bg-black hover:text-white transition"
                     >
                       <AiOutlineShoppingCart />
                     </button>
@@ -246,33 +261,10 @@ export default function Collections() {
             </Link>
           </motion.div>
         ))}
-
-        {/* ✨ SHIMMER SKELETON */}
-        {loading &&
-          Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-[300px] rounded-xl overflow-hidden relative"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-[shimmer_1.5s_infinite]" />
-            </div>
-          ))}
       </div>
 
-      {/* LOAD TRIGGER */}
+      {/* LOADER */}
       <div ref={loaderRef} className="h-10"></div>
-
-      {/* SHIMMER STYLE */}
-      <style jsx>{`
-        @keyframes shimmer {
-          0% {
-            transform: translateX(-100%);
-          }
-          100% {
-            transform: translateX(100%);
-          }
-        }
-      `}</style>
     </section>
   );
 }

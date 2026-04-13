@@ -2,58 +2,78 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+
+const slugify = (text) =>
+  text
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/\s+/g, "-");
 
 export default function Categories() {
+  const router = useRouter();
+
   const categories = [
-    { name: "Electronics", img: "/categories/Electronics.jpg" },
-    { name: "Fashion", img: "/categories/Fashion.jpg" },
-    { name: "Home & Living", img: "/categories/Home.jpg" },
-    { name: "Beauty", img: "/categories/Beauty.jpg" },
-    { name: "Sports", img: "/categories/Sports.jpg" },
-    { name: "Automotive", img: "/categories/Automotive.jpg" },
-    { name: "Gaming", img: "/categories/Gaming.jpg" },
-    { name: "Grocery", img: "/categories/Grocery.jpg" },
-    { name: "Books", img: "/categories/Books.jpg" },
+    "Glamour & Beauty",
+    "Intimate & Personal Care",
+    "Auto Parts",
+    "Fashion",
+    "Tools & Hardware",
+    "Stationery",
+    "Mother & Baby",
+    "Travel & Accessories",
+    "Home & kitchen",
   ];
+
+  const images = {
+    "Glamour & Beauty": "/categories/Glamour-Beauty.png",
+    "Intimate & Personal Care": "/categories/intimate.png",
+    "Auto Parts": "/categories/auto-parts.png",
+    Fashion: "/categories/Fashion.jpg",
+    "Tools & Hardware": "/categories/Tools & Hardware.jpg",
+    Stationery: "/categories/Stationery.jpg",
+    "Mother & Baby": "/categories/Mother & Baby.jpg",
+    "Travel & Accessories": "/categories/Travel & Accessories.jpg",
+    "Home & kitchen": "/categories/Home & kitchen.jpg",
+  };
 
   return (
     <section className="px-6 md:px-12 py-20 max-w-7xl mx-auto">
-
-      {/* Heading (same style as your section) */}
       <h2 className="text-2xl mb-12 text-center font-semibold">
         Browse Categories
       </h2>
 
-      {/* Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
         {categories.map((cat, i) => (
           <motion.div
             key={i}
-            whileHover={{ y: -6 }}
-            transition={{ type: "spring", stiffness: 200 }}
-            className="group relative h-[180px] md:h-[220px] overflow-hidden cursor-pointer border border-gray-200 bg-white"
+            whileHover={{ scale: 1.03 }}
+            onClick={() =>
+              router.push(`/category/${slugify(cat)}`)
+            }
+            className="bg-white rounded-xl overflow-hidden shadow cursor-pointer"
           >
-            <Image
-              src={cat.img}
-              alt={cat.name}
-              fill
-              className="object-cover group-hover:scale-105 transition duration-500"
-            />
+            {/* IMAGE */}
+            <div className="relative h-[220px]">
+              <Image
+                src={images[cat]}
+                alt={cat}
+                fill
+                className="object-cover"
+              />
+            </div>
 
-            {/* Overlay */}
-            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition" />
+            {/* TEXT */}
+            <div className="p-4">
+              <h3 className="text-sm font-medium">{cat}</h3>
 
-            {/* Title */}
-            <p className="absolute bottom-4 left-4 text-white text-xs tracking-widest">
-              {cat.name.toUpperCase()}
-            </p>
-
-            {/* Bottom hover line (same vibe as your cards) */}
-            <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-white transition-all duration-300 group-hover:w-full" />
+              <p className="text-xs text-gray-500 mt-1">
+                Explore products in {cat}
+              </p>
+            </div>
           </motion.div>
         ))}
       </div>
-
     </section>
   );
 }
